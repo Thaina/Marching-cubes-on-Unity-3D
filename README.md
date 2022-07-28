@@ -101,7 +101,7 @@ Example of edition of the "B_Mountains" biome:
 ![B_Mountains edition](https://user-images.githubusercontent.com/58559223/94999078-200fea00-05b7-11eb-8a27-ed4f774b4980.gif)
 
 ### Create custom biomes<a name="subparagraph4-2"></a>
-For create the a biome you need create a class that heir from the class "Biome" and that must have the function "public override byte[] GenerateChunkData(Vector2Int vecPos, float[] biomeMerge)" used for generate the biome texturization. For this process you can copy a paste the code of some actual biome and apply the necessary changes to the code for get your custom biome. 
+For create the a biome you need create a class that heir from the class "Biome" and that must have the function "public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)" used for generate the biome texturization. For this process you can copy a paste the code of some actual biome and apply the necessary changes to the code for get your custom biome. 
 
 When you have the new biome class create, use the [edit biome section](#subparagraph4-1) for edit the parameters in a real time test terrain.
 

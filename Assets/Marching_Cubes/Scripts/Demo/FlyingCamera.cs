@@ -26,11 +26,12 @@ public class FlyingCamera : MonoBehaviour
     void Update()
     {
         var dir = Input.GetAxis("Vertical") * transform.forward + Input.GetAxis("Horizontal") * transform.right;
-        transform.position += (dir * speed * Time.deltaTime);
         if(Input.GetKey(KeyCode.Space))
-            transform.position += Vector3.up * speed * Time.deltaTime;
+            dir += Vector3.up;
         else if(Input.GetKey(KeyCode.LeftShift))
-            transform.position -= Vector3.up * speed * Time.deltaTime;
+            dir -= Vector3.up;
+
+        transform.position += (dir * speed * Time.deltaTime);
 
         yaw += rotationSpeed * Input.GetAxis("Mouse X");
         pitch -= rotationSpeed * Input.GetAxis("Mouse Y");

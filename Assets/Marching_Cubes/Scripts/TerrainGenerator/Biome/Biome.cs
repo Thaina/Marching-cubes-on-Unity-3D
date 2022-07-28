@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 abstract public class Biome : MonoBehaviour
@@ -26,7 +27,7 @@ abstract public class Biome : MonoBehaviour
 	/// <summary>
 	/// Generate the chunk data
 	/// </summary>
-	public abstract byte[] GenerateChunkData(Vector2Int vecPos, float[] biomeMerge);
+	public abstract byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge);
 
 
 }

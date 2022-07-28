@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class B_Desert : Biome
@@ -11,9 +12,9 @@ public class B_Desert : Biome
 	[Header("Texture generation")]
 	[Tooltip("Number vertex (y), where the sand end and the rock start")][Range(0, Constants.MAX_HEIGHT - 1)]
 	public int sandDeep = Constants.MAX_HEIGHT / 5;
-	public override byte[] GenerateChunkData(Vector2Int vecPos, float[] biomeMerge)
+	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
-		byte[] chunkData = new byte[Constants.CHUNK_BYTES];
+		var chunkData = new byte[Constants.CHUNK_BYTES];
 		float[] noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		for (int z = 0; z < Constants.CHUNK_VERTEX_SIZE; z++)
 		{

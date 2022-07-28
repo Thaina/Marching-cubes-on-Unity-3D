@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using Unity.Mathematics;
 
 public class ChunkManager : Singleton<ChunkManager>
 {
@@ -16,43 +17,41 @@ public class ChunkManager : Singleton<ChunkManager>
     [Tooltip("F4 to active. Show the current chunk and the data of the voxel you are looking. Important: You need activate gizmos in Game tab!!")]
     public bool debugMode = false;
 
-    private Dictionary<Vector2Int, Chunk> chunkDict = new Dictionary<Vector2Int, Chunk>();
-    private Dictionary<Vector2Int, Region> regionDict = new Dictionary<Vector2Int, Region>();
-    private List<Vector2Int> chunkLoadList = new List<Vector2Int>();
+    private Dictionary<int2, Chunk> chunkDict = new Dictionary<int2, Chunk>();
+    private Dictionary<int2, Region> regionDict = new Dictionary<int2, Region>();
+    private Queue<int2> chunkLoadList = new Queue<int2>();
 
     private NoiseManager noiseManager;
     private Transform player;
-    private Vector3 lastPlayerPos;
+    private float2 lastPlayerPos;
     private int lastChunkViewDistance;
     private float hideDistance;
     private float removeDistance;
-    private float loadRegionDistance;
-
+    
+    const float loadRegionDistance = Constants.CHUNK_SIDE * Constants.REGION_SIZE * Constants.VOXEL_SIDE * 0.9f;
+    float2 RegionFromPosition(float3 pos) => math.floor(pos.xz / loadRegionDistance);
 
     //Search the player start position and the start the chunk load (Called from NoiseManager start)
     public void Initialize()
     {
         noiseManager = NoiseManager.Instance;
-        if (useCameraPosition)
-            player = Camera.main.transform;//Use the Camera.main as player pos
-        else
-            player = GameObject.FindGameObjectWithTag("Player").transform;//Search gameobject with tag Player
-        loadRegionDistance = Constants.CHUNK_SIDE * Constants.REGION_SIZE * Constants.VOXEL_SIDE * 0.9f;
-        lastPlayerPos.x = Mathf.FloorToInt(player.position.x / loadRegionDistance) * loadRegionDistance + loadRegionDistance / 2;
-        lastPlayerPos.z = Mathf.FloorToInt(player.position.z / loadRegionDistance) * loadRegionDistance + loadRegionDistance / 2;
-        initRegion(Mathf.FloorToInt(player.position.x / loadRegionDistance), Mathf.FloorToInt(player.position.z/ loadRegionDistance));
+        player = useCameraPosition || !(GameObject.FindGameObjectWithTag("Player") is var gobj && gobj != null) ? Camera.main.transform : gobj.transform; // Search gameobject with tag Player
+
+        var xz = RegionFromPosition(player.position);
+        lastPlayerPos = xz * loadRegionDistance + loadRegionDistance / 2;
+        initRegion((int2)xz);
     }
 
     /// <summary>
     /// Load surrounding regions of the player when first load
     /// </summary>
-    void initRegion(int initX, int initZ)
+    void initRegion(int2 init)
     {
-        for (int x = initX-1; x < initX+2; x++)
+        for (int x = init.x-1; x < init.x+2; x++)
         {
-            for (int z = initZ-1; z < initZ + 2; z++)
+            for (int z = init.y-1; z < init.y + 2; z++)
             {
-                regionDict.Add(new Vector2Int(x,z), new Region(x,z));
+                regionDict.Add(new int2(x,z), new Region(x,z));
             }
         }
     }
@@ -60,25 +59,20 @@ public class ChunkManager : Singleton<ChunkManager>
     /// <summary>
     /// Load new regions and unload the older.
     /// </summary>
-    void LoadRegion(int initX, int initZ)
+    void LoadRegion(int2 init)
     {
-        Dictionary<Vector2Int, Region> newRegionDict = new Dictionary<Vector2Int, Region>();
+        var newRegionDict = new Dictionary<int2, Region>();
 
-        for (int x = initX-1; x < initX + 2; x++)
+        for (int x = init.x-1; x < init.x+2; x++)
         {
-            for (int z = initZ-1; z < initZ + 2; z++)
+            for (int z = init.y-1; z < init.y + 2; z++)
             {
-                if (regionDict.ContainsKey(new Vector2Int(x,z)))
-                {
-                    newRegionDict.Add(new Vector2Int(x, z), regionDict[new Vector2Int(x, z)]);
-                    regionDict.Remove(new Vector2Int(x, z));
-                }
-                else
-                    newRegionDict.Add(new Vector2Int(x,z), new Region(x, z));
+                newRegionDict.Add(new int2(x,z),regionDict.Remove(new int2(x,z),out var region) ? region : new Region(x, z));
             }
         }
+
         //save old regions
-        foreach (Region region in regionDict.Values)
+        foreach (var region in regionDict.Values)
             region.SaveRegionData();
 
         //Assign new region area
@@ -106,10 +100,10 @@ public class ChunkManager : Singleton<ChunkManager>
     /// </summary>
     void HiddeRemoveChunk()
     {
-        List<Vector2Int> removeList = new List<Vector2Int>(); ;
-        foreach (KeyValuePair<Vector2Int, Chunk> chunk in chunkDict)
+        var removeList = new List<int2>(); ;
+        foreach (var chunk in chunkDict)
         {
-            float distance = Mathf.Sqrt(Mathf.Pow((player.position.x - chunk.Value.transform.position.x), 2) + Mathf.Pow((player.position.z - chunk.Value.transform.position.z), 2));
+            float distance = math.length(new float3(player.position - chunk.Value.transform.position).xz);
             if (distance > removeDistance)
             {
                 chunk.Value.saveChunkInRegion();//Save chunk only in case that get some modifications
@@ -125,7 +119,7 @@ public class ChunkManager : Singleton<ChunkManager>
         //remove chunks
         if(removeList.Count != 0)
         {
-            foreach(Vector2Int key in removeList)
+            foreach(var key in removeList)
             {
                 //Debug.Log("chunk deleted: " + key);
                 chunkDict.Remove(key);
@@ -133,34 +127,33 @@ public class ChunkManager : Singleton<ChunkManager>
         }
     }
 
+    static int2 ActualChunk(float3 pos) => new int2(math.ceil((pos.xz - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE));
+
     /// <summary>
     /// Load in chunkLoadList or active Gameobject chunks at the chunkViewDistance radius of the player
     /// </summary>
     void CheckNewChunks()
     {
-        Vector2Int actualChunk =new Vector2Int(Mathf.CeilToInt((player.position.x- Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE ),
-                                                Mathf.CeilToInt((player.position.z - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE ));
+        var actualChunk = ActualChunk(player.position);
         //Debug.Log("Actual chunk: " + actualChunk);
-        for(int x= actualChunk.x-chunkViewDistance; x< actualChunk.x + chunkViewDistance; x++)
+        for(int x = actualChunk.x - chunkViewDistance; x < actualChunk.x + chunkViewDistance; x++)
         {
             for (int z = actualChunk.y - chunkViewDistance; z < actualChunk.y + chunkViewDistance; z++)
             {
-                if (Mathf.Pow((actualChunk.x - x), 2) + Mathf.Pow((actualChunk.y - z), 2) > chunkViewDistance * chunkViewDistance)
+                if (math.distancesq(actualChunk,new int2(x,z)) > chunkViewDistance * chunkViewDistance)
                 {
                     continue;
                 }
-                Vector2Int key = new Vector2Int(x, z);
-                if (!chunkDict.ContainsKey(key))
+
+                var key = new int2(x, z);
+                if (chunkDict.TryGetValue(key,out var chunk))
                 {
-                    if(!chunkLoadList.Contains(key))
-                    {
-                        chunkLoadList.Add(key);
-                    }
+                    if(!chunk.gameObject.activeSelf)
+                        chunk.gameObject.SetActive(true);
                 }
-                else
+                else if(!chunkLoadList.Contains(key))
                 {
-                    if(!chunkDict[key].gameObject.activeSelf)
-                        chunkDict[key].gameObject.SetActive(true);
+                    chunkLoadList.Enqueue(key);
                 }
             }
         }
@@ -171,31 +164,24 @@ public class ChunkManager : Singleton<ChunkManager>
     /// </summary>
     void LoadChunkFromList()
     {
-        if (chunkLoadList.Count == 0)
+        if (!chunkLoadList.TryDequeue(out var key))
             return;
 
-        Vector2Int key = chunkLoadList[0];
-
-        Vector2Int regionPos = new Vector2Int(Mathf.FloorToInt(((float)key.x) / Constants.REGION_SIZE), Mathf.FloorToInt(((float)key.y) / Constants.REGION_SIZE));
-        if(!regionDict.ContainsKey(regionPos))//In case that the chunk isn't in the loaded regions we remove it, tp or too fast movement.
-        {
-            chunkLoadList.RemoveAt(0);
+        var regionPos = new int2(math.floor((float2)key / Constants.REGION_SIZE));
+        if(!regionDict.TryGetValue(regionPos,out var region))//In case that the chunk isn't in the loaded regions we remove it, tp or too fast movement.
             return;
-        }
-        GameObject chunkObj = new GameObject("Chunk_" + key.x + "|" + key.y, typeof(MeshFilter), typeof(MeshRenderer));
+
+        var chunkObj = new GameObject("Chunk_" + key.x + "|" + key.y, typeof(MeshFilter), typeof(MeshRenderer));
         chunkObj.transform.parent = transform;
-        chunkObj.transform.position = new Vector3(key.x * Constants.CHUNK_SIDE, 0, key.y * Constants.CHUNK_SIDE);
+        chunkObj.transform.position = new float3() { xz = (float2)key * Constants.CHUNK_SIDE };
         //Debug.Log("Try load: "+x+"|"+z +" in "+regionPos);
 
-        Vector2Int keyInsideChunk = new Vector2Int(key.x - regionPos.x * Constants.REGION_SIZE , key.y - regionPos.y * Constants.REGION_SIZE);
+        var keyInsideChunk = key - regionPos * Constants.REGION_SIZE;
         //We get X and Y in the world position, we need calculate the x and y in the region.
-        int chunkIndexInRegion = regionDict[regionPos].GetChunkIndex(keyInsideChunk.x, keyInsideChunk.y);
-        if (chunkIndexInRegion != 0)//Load chunk from a region data
-            chunkDict.Add(key, chunkObj.AddComponent<Chunk>().ChunkInit(regionDict[regionPos].GetChunkData(chunkIndexInRegion), keyInsideChunk.x, keyInsideChunk.y, regionDict[regionPos], false));
-        else //Generate chunk with the noise generator
-            chunkDict.Add(key, chunkObj.AddComponent<Chunk>().ChunkInit(noiseManager.GenerateChunkData(key), keyInsideChunk.x, keyInsideChunk.y, regionDict[regionPos], Constants.SAVE_GENERATED_CHUNKS));
-
-        chunkLoadList.RemoveAt(0);
+        int chunkIndexInRegion = region.GetChunkIndex(keyInsideChunk);
+        bool isFromRegion = chunkIndexInRegion != 0;
+        var chunkData = isFromRegion ? region.GetChunkData(chunkIndexInRegion) : noiseManager.GenerateChunkData(key);//Generate chunk with the noise generator
+        chunkDict.Add(key, chunkObj.AddComponent<Chunk>().ChunkInit(chunkData, keyInsideChunk, region, isFromRegion ? false : Constants.SAVE_GENERATED_CHUNKS));
     }
 
     /// <summary>
@@ -203,13 +189,12 @@ public class ChunkManager : Singleton<ChunkManager>
     /// </summary>
     void CheckRegion()
     {
-        if (Mathf.Abs(lastPlayerPos.x - player.position.x) > loadRegionDistance || Mathf.Abs(lastPlayerPos.z - player.position.z) > loadRegionDistance )
+        var pos = (float3)player.position;
+        if (math.any(math.abs(lastPlayerPos - pos.xz) > loadRegionDistance))
         {
-            int actualX = Mathf.FloorToInt(player.position.x / loadRegionDistance) ;
-            lastPlayerPos.x = actualX * loadRegionDistance + loadRegionDistance / 2;
-            int actualZ = Mathf.FloorToInt(player.position.z / loadRegionDistance);
-            lastPlayerPos.z = actualZ * loadRegionDistance + loadRegionDistance / 2;
-            LoadRegion(actualX, actualZ);
+            var actual = RegionFromPosition(pos);
+            lastPlayerPos = actual * loadRegionDistance + loadRegionDistance / 2;
+            LoadRegion((int2)actual);
         }
     }
 
@@ -228,16 +213,15 @@ public class ChunkManager : Singleton<ChunkManager>
     /// <summary>
     /// Modify voxels in a specific point of a chunk.
     /// </summary>
-    public void ModifyChunkData(Vector3 modificationPoint, float range, float modification, int mat = -1)
+    public void ModifyChunkData(float3 modificationPoint, float range, float modification, int mat = -1)
     {
-        Vector3 originalPint = modificationPoint;
-        modificationPoint = new Vector3(modificationPoint.x / Constants.VOXEL_SIDE, modificationPoint.y / Constants.VOXEL_SIDE, modificationPoint.z / Constants.VOXEL_SIDE);
+        modificationPoint /= Constants.VOXEL_SIDE;
 
         //Chunk voxel position (based on the chunk system)
-        Vector3 vertexOrigin = new Vector3((int)modificationPoint.x, (int)modificationPoint.y, (int)modificationPoint.z);
+        var vertexOrigin = (int3)modificationPoint;
 
         //intRange (convert Vector3 real world range to the voxel size range)
-        int intRange = (int)(range / 2 * Constants.VOXEL_SIDE);//range /2 because the for is from -intRange to +intRange
+        int intRange = (int)(range * Constants.VOXEL_SIDE / 2);//range /2 because the for is from -intRange to +intRange
 
         for (int y = -intRange; y <= intRange; y++)
         {
@@ -245,14 +229,13 @@ public class ChunkManager : Singleton<ChunkManager>
             {
                 for (int x = -intRange; x <= intRange; x++)
                 {
+                    //Edit vertex of the chunk
+                    var vertexPoint = vertexOrigin + new float3(x,y,z);
                     //Avoid edit the first and last height vertex of the chunk, for avoid non-faces in that heights
-                    if (vertexOrigin.y + y >= Constants.MAX_HEIGHT / 2 || vertexOrigin.y + y <= -Constants.MAX_HEIGHT / 2)
+                    if (math.abs(vertexPoint.y) >= Constants.MAX_HEIGHT / 2)
                         continue;
 
-                    //Edit vertex of the chunk
-                    Vector3 vertexPoint = new Vector3(vertexOrigin.x + x, vertexOrigin.y + y, vertexOrigin.z + z);
-
-                    float distance = Vector3.Distance(vertexPoint, modificationPoint);
+                    float distance = math.distance(vertexPoint, modificationPoint);
                     if (distance > range)//Not in range of modification, we check other vertexs
                     {
                         //Debug.Log("no Rango: "+ distance + " > " + range+ " |  "+ vertexPoint +" / " + modificationPoint);
@@ -260,107 +243,70 @@ public class ChunkManager : Singleton<ChunkManager>
                     }
 
                     //Chunk of the vertexPoint
-                    Vector2Int hitChunk = new Vector2Int(Mathf.CeilToInt((vertexPoint.x + 1 - Constants.CHUNK_SIZE / 2) / Constants.CHUNK_SIZE),
-                                                    Mathf.CeilToInt((vertexPoint.z + 1 - Constants.CHUNK_SIZE / 2) / Constants.CHUNK_SIZE));
+                    var hitChunk = new int2(math.ceil((vertexPoint.xz + 1 - Constants.CHUNK_SIZE / 2) / Constants.CHUNK_SIZE));
                     //Position of the vertexPoint in the chunk (x,y,z)
-                    Vector3Int vertexChunk = new Vector3Int((int)(vertexPoint.x - hitChunk.x * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2),
-                        (int)(vertexPoint.y + Constants.CHUNK_VERTEX_HEIGHT / 2),
-                        (int)(vertexPoint.z - hitChunk.y * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2));
+                    var vertexChunk = (int3)(vertexPoint - new float3() { xz = hitChunk * Constants.CHUNK_SIZE } + Chunk.VertexSize / 2);
 
                     int chunkModification = (int)(modification * (1 - distance / range));
-                    //Debug.Log( vertexPoint + " | chunk: "+ hitChunk+ " / " + vertexChunk);//Debug Vertex point to chunk and vertexChunk
-                    chunkDict[hitChunk].modifyTerrain(vertexChunk, chunkModification, mat);
+
+                    if (chunkDict.TryGetValue(hitChunk,out var chunk00))
+                    {
+                        chunk00.modifyTerrain(vertexChunk, chunkModification, mat);
+                    }
+
+                    var isZero = vertexChunk.xz == 0;
 
                     //Functions for change last vertex of chunk (vertex that touch others chunk)
-                    if (vertexChunk.x == 0 && vertexChunk.z == 0)//Interact with chunk(-1,-1), chunk(-1,0) and chunk(0,-1)
+                    if (math.all(isZero) && chunkDict.TryGetValue(hitChunk - new int2(1,1),out var chunk11))//Interact with chunk(-1,-1)
                     {
-                        //Vertex of chunk (-1,0)
-                        hitChunk.x -= 1;//Chunk -1
-                        vertexChunk.x = Constants.CHUNK_SIZE; //Vertex of a chunk -1, last vertex
-                        chunkDict[hitChunk].modifyTerrain(vertexChunk, chunkModification, mat);
-                        //Vertex of chunk (-1,-1)
-                        hitChunk.y -= 1;
-                        vertexChunk.z = Constants.CHUNK_SIZE;
-                        chunkDict[hitChunk].modifyTerrain(vertexChunk, chunkModification, mat);
-                        //Vertex of chunk (0,-1)
-                        hitChunk.x += 1;
-                        vertexChunk.x = 0;
-                        chunkDict[hitChunk].modifyTerrain(vertexChunk, chunkModification, mat);
-                    }
-                    else if (vertexChunk.x == 0)//Interact with vertex of chunk(-1,0)
-                    {
-                        hitChunk.x -= 1;
-                        vertexChunk.x = Constants.CHUNK_SIZE;
-                        chunkDict[hitChunk].modifyTerrain(vertexChunk, chunkModification, mat);
-                    }
-                    else if (vertexChunk.z == 0)//Interact with vertex of chunk(0,-1)
-                    {
-                        hitChunk.y -= 1;
-                        vertexChunk.z = Constants.CHUNK_SIZE;
-                        chunkDict[hitChunk].modifyTerrain(vertexChunk, chunkModification, mat);
+                        chunk11.modifyTerrain(new int3(vertexChunk) { xz = Constants.CHUNK_SIZE }, chunkModification, mat);
                     }
 
-                    //Debug.Log(distance / range);
-
-
+                    if (isZero.x && chunkDict.TryGetValue(hitChunk - new int2(1,0),out var chunk10))//Interact with vertex of chunk(-1,0)
+                    {
+                        chunk10.modifyTerrain(new int3(vertexChunk) { x = Constants.CHUNK_SIZE }, chunkModification, mat);
+                    }
+                    
+                    if (isZero.y && chunkDict.TryGetValue(hitChunk - new int2(0,1),out var chunk01))//Interact with vertex of chunk(0,-1)
+                    {
+                        chunk01.modifyTerrain(new int3(vertexChunk) { z = Constants.CHUNK_SIZE }, chunkModification, mat);
+                    }
                 }
             }
         }
     }
 
-
     /// <summary>
     /// Get the material(byte) from a specific point in the world
     /// </summary>
-    public byte GetMaterialFromPoint(Vector3 point)
+    public byte GetMaterialFromPoint(float3 point)
     {
-        point = new Vector3(point.x / Constants.VOXEL_SIDE, point.y / Constants.VOXEL_SIDE, point.z / Constants.VOXEL_SIDE);
+        point /= Constants.VOXEL_SIDE;
 
-        Vector3 vertexOrigin = new Vector3((int)point.x, (int)point.y, (int)point.z);
+        var vertexOrigin = (float3)math.int3(point);
 
-        //Chunk containing the point
-        Vector2Int hitChunk = new Vector2Int(Mathf.CeilToInt((vertexOrigin.x + 1 - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE),
-                                        Mathf.CeilToInt((vertexOrigin.z + 1 - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE));
-        //VertexPoint of the point in the chunk (x,y,z)
-        Vector3Int vertexChunk = new Vector3Int((int)(vertexOrigin.x - hitChunk.x * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2),
-            (int)(vertexOrigin.y + Constants.CHUNK_VERTEX_HEIGHT / 2),
-            (int)(vertexOrigin.z - hitChunk.y * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2));
-
-        if (chunkDict[hitChunk].GetMaterial(vertexChunk) != Constants.NUMBER_MATERIALS)//not air material, we return it
+        //Loop next vertex for get a other material different to air
+        for (int i = -1; i < 6; i++)
         {
-            return chunkDict[hitChunk].GetMaterial(vertexChunk);
-        }
-        else//Loop next vertex for get a other material different to air
-        {
-            //we check six next vertex 
-            Vector3[] nextVertexPoints = new Vector3[6];
-            nextVertexPoints[0] = new Vector3(vertexOrigin.x + 0, vertexOrigin.y - 1, vertexOrigin.z + 0);
-            nextVertexPoints[1] = new Vector3(vertexOrigin.x + 1, vertexOrigin.y + 0, vertexOrigin.z + 0);
-            nextVertexPoints[2] = new Vector3(vertexOrigin.x - 1, vertexOrigin.y + 0, vertexOrigin.z + 0);
-            nextVertexPoints[3] = new Vector3(vertexOrigin.x + 0, vertexOrigin.y + 0, vertexOrigin.z + 1);
-            nextVertexPoints[4] = new Vector3(vertexOrigin.x + 0, vertexOrigin.y + 0, vertexOrigin.z + 1);
-            nextVertexPoints[5] = new Vector3(vertexOrigin.x + 0, vertexOrigin.y + 1, vertexOrigin.z + 0);
-            List<byte> mats = new List<byte>();
-            for (int i = 0; i < nextVertexPoints.Length; i++)
+            var nextVertexPoint = vertexOrigin + new int3 {
+                x = i == 1 ? 1 : (i == 2 ? -1 : 0),
+                y = i == 5 ? 1 : (i == 0 ? -1 : 0),
+                z = i == 3 ? 1 : (i == 4 ? -1 : 0),
+            };
+
+            //Chunk of the vertexPoint
+            var hitChunk = new int2(math.ceil(nextVertexPoint.xz + 1 - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE);
+            //Position of the vertexPoint in the chunk (x,y,z)
+            var vertexChunk = new int3(nextVertexPoint - new float3() { xz = hitChunk * Constants.CHUNK_SIZE } + Chunk.VertexSize / 2);
+
+            if (chunkDict[hitChunk].GetMaterial(vertexChunk) is var tmp && tmp != Constants.NUMBER_MATERIALS)//not air material, we return it
             {
-                //Chunk of the vertexPoint
-                hitChunk = new Vector2Int(Mathf.CeilToInt((nextVertexPoints[i].x + 1 - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE),
-                                                Mathf.CeilToInt((nextVertexPoints[i].z + 1 - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE));
-                //Position of the vertexPoint in the chunk (x,y,z)
-                vertexChunk = new Vector3Int((int)(nextVertexPoints[i].x - hitChunk.x * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2),
-                    (int)(nextVertexPoints[i].y + Constants.CHUNK_VERTEX_HEIGHT / 2),
-                    (int)(nextVertexPoints[i].z - hitChunk.y * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2));
-
-                if (chunkDict[hitChunk].GetMaterial(vertexChunk) != Constants.NUMBER_MATERIALS)//not air material, we return it
-                {
-                    return chunkDict[hitChunk].GetMaterial(vertexChunk);
-                }
+                return tmp;
             }
         }
 
         return Constants.NUMBER_MATERIALS;//only air material in that point.
     }
-
 
     /// <summary>
     /// Save all chunk and regions data when user close the game.
@@ -387,24 +333,15 @@ public class ChunkManager : Singleton<ChunkManager>
         if (debugMode && Application.isPlaying)
         {
             //Show chunk
-            Vector2Int actualChunk = new Vector2Int(Mathf.CeilToInt((player.position.x - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE),
-                                        Mathf.CeilToInt((player.position.z - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE));
-            Vector3 chunkCenter = new Vector3(actualChunk.x * Constants.CHUNK_SIDE, 0, actualChunk.y * Constants.CHUNK_SIDE);
+            var actualChunk = ActualChunk(player.position);
+            var chunkCenter = new float3() { xz = (float2)actualChunk * Constants.CHUNK_SIDE };
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireCube(chunkCenter, new Vector3(Constants.CHUNK_SIDE, Constants.MAX_HEIGHT * Constants.VOXEL_SIDE, Constants.CHUNK_SIDE));
+            Gizmos.DrawWireCube(chunkCenter,Chunk.BoxSide);
 
             //Show voxel
-            RaycastHit hitInfo;
-            if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hitInfo, 100.0f))
+            if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out var hitInfo, 100.0f))
             {
-                Vector2Int chunkHit = new Vector2Int(Mathf.CeilToInt((hitInfo.point.x - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE),
-                            Mathf.CeilToInt((hitInfo.point.z - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE));
-                Vector3Int vertexChunk = new Vector3Int((int)(hitInfo.point.x - chunkHit.x * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2),
-                            (int)(hitInfo.point.y + Constants.CHUNK_VERTEX_HEIGHT / 2),
-                            (int)(hitInfo.point.z - chunkHit.y * Constants.CHUNK_SIZE + Constants.CHUNK_VERTEX_SIZE / 2));
-                Vector3 voxelRealPosition = new Vector3((Mathf.FloorToInt(hitInfo.point.x / Constants.VOXEL_SIDE)) * Constants.VOXEL_SIDE + Constants.VOXEL_SIDE/2,
-                            (Mathf.FloorToInt(hitInfo.point.y / Constants.VOXEL_SIDE)) * Constants.VOXEL_SIDE + Constants.VOXEL_SIDE/2,
-                            (Mathf.FloorToInt(hitInfo.point.z / Constants.VOXEL_SIDE)) * Constants.VOXEL_SIDE + Constants.VOXEL_SIDE/2);
+                var voxelRealPosition = math.floor(hitInfo.point / Constants.VOXEL_SIDE) * Constants.VOXEL_SIDE + Constants.VOXEL_SIDE / 2;
 
                 Gizmos.color = Color.red;
                 Gizmos.DrawWireCube(voxelRealPosition, Vector3.one * Constants.VOXEL_SIDE);

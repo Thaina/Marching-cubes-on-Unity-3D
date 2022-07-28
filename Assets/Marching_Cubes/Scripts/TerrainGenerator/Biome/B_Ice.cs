@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class B_Ice : Biome
@@ -24,9 +25,9 @@ public class B_Ice : Biome
 	[Range(1, 20)]
 	public float IceLacunarity = 2f;
 
-	public override byte[] GenerateChunkData(Vector2Int vecPos, float[] biomeMerge)
+	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
-		byte[] chunkData = new byte[Constants.CHUNK_BYTES];
+		var chunkData = new byte[Constants.CHUNK_BYTES];
 		float[] noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		float[] iceNoise = NoiseManager.GenerateNoiseMap(iceNoiseScale,2,IcePersistance,IceLacunarity, vecPos);
 		for (int z = 0; z < Constants.CHUNK_VERTEX_SIZE; z++)

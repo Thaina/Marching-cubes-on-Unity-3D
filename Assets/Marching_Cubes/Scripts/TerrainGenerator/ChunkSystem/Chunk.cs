@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class Chunk : MonoBehaviour
@@ -7,8 +8,7 @@ public class Chunk : MonoBehaviour
     [Tooltip("Active gizmos that represent the area of the chunk")]
     public bool debug = false;
     private byte[] data;
-    private int Xpos;
-    private int Zpos;
+    private int2 pos;
     private Region fatherRegion;
     private bool modified = false;
     private bool changesUnsaved;
@@ -17,15 +17,14 @@ public class Chunk : MonoBehaviour
     /// Create a Chunk using a byte[] that contain all the data of the chunk.
     /// </summary>
     /// <param name="b"> data of the chunk</param>
-    public Chunk ChunkInit(byte[] b, int x, int z, Region region, bool save)
+    public Chunk ChunkInit(byte[] b, int2 p, Region region, bool save)
     {
         data = b;
-        Xpos = x;
-        Zpos = z;
+        pos = p;
         fatherRegion = region;
         changesUnsaved = save;
 
-        Mesh myMesh = MeshBuilder.Instance.BuildChunk(b);
+        var myMesh = MeshBuilder.Instance.BuildChunk(b);
         GetComponent<MeshFilter>().mesh = myMesh;
 
         //Assign random color, new material each chunk.
@@ -44,7 +43,7 @@ public class Chunk : MonoBehaviour
             modified = false;
             changesUnsaved = true;
 
-            Mesh myMesh = MeshBuilder.Instance.BuildChunk(data);
+            var myMesh = MeshBuilder.Instance.BuildChunk(data);
             GetComponent<MeshFilter>().mesh = myMesh;
             GetComponent<MeshCollider>().sharedMesh = myMesh;
 
@@ -57,47 +56,22 @@ public class Chunk : MonoBehaviour
     /// <param name="vertexPoint"></param>
     /// <param name="modification"></param>
     /// <param name="mat"></param>
-    public void modifyTerrain(Vector3 vertexPoint, int modification, int mat = 0)
+    public void modifyTerrain(int3 vertexPoint, int modification, int mat = 0)
     {
-        if (modification > 0)
-            addTerrain(vertexPoint,modification, mat);//A little more costly
-        else
-            removeTerrain(vertexPoint,modification);//Less operations
-    }
-
-    /// <summary>
-    /// Remove terrain in the chunk,
-    /// </summary>
-    public void removeTerrain(Vector3 vertexPoint, int modification)
-    {
-        int byteIndex = ((int)vertexPoint.x + (int)vertexPoint.z * Constants.CHUNK_VERTEX_SIZE + (int)vertexPoint.y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
+        int byteIndex = ByteIndex(vertexPoint);
 
         int value = data[byteIndex];
-        int newValue = Mathf.Clamp(value + modification, 0, 255);
+        byte newValue = (byte)math.clamp(value + modification, 0, 255);
 
         if (value == newValue)
             return;
 
-        data[byteIndex] = (byte)newValue;
-        modified = true; //Don't direct change because some vertex are modifier in the same editions, wait to next frame
-    }
-
-    /// <summary>
-    /// Similar to the removeTerrain, but when we add terrain we need indicate a color.
-    /// </summary>
-    public void addTerrain(Vector3 vertexPoint,int modification, int mat)
-    {
-        int isoSurface = MeshBuilder.Instance.isoLevel;
-        int byteIndex = ((int)vertexPoint.x + (int)vertexPoint.z * Constants.CHUNK_VERTEX_SIZE + (int)vertexPoint.y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE ;
-
-        int value = data[byteIndex];
-        int newValue = Mathf.Clamp(value + modification, 0, 255);
-
-        if (value == newValue)
-            return;
-        if (value < isoSurface && newValue >= isoSurface)
-            data[byteIndex + 1] = (byte)mat;
-
+        if (modification > 0) // addTerrain
+        {
+            int isoSurface = MeshBuilder.Instance.isoLevel;
+            if (value < isoSurface && newValue >= isoSurface)
+                data[byteIndex + 1] = (byte)mat;
+        }
 
         data[byteIndex] = (byte)newValue;
         modified = true; //Don't direct change because some vertex are modifier in the same editions, wait to next frame
@@ -106,11 +80,13 @@ public class Chunk : MonoBehaviour
     /// <summary>
     /// Get the material(byte) from a specific point in the chunk
     /// </summary>
-    public byte GetMaterial(Vector3 vertexPoint)
+    public byte GetMaterial(int3 vertexPoint)
     {
-        int byteIndex = ((int)vertexPoint.x + (int)vertexPoint.z * Constants.CHUNK_VERTEX_SIZE + (int)vertexPoint.y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
-        return data[byteIndex + 1];
+        return data[ByteIndex(vertexPoint) + 1];
     }
+
+    public static int ByteIndex(int3 vertexPoint) => (vertexPoint.x + vertexPoint.z * Constants.CHUNK_VERTEX_SIZE + vertexPoint.y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
+    public static float3 VertexSize => new float3(Constants.CHUNK_VERTEX_SIZE,Constants.CHUNK_VERTEX_HEIGHT,Constants.CHUNK_VERTEX_SIZE);
 
     /// <summary>
     /// Save the chunk data in the region if the chunk get some changes.
@@ -118,7 +94,7 @@ public class Chunk : MonoBehaviour
     public void saveChunkInRegion()
     {
         if(changesUnsaved)
-            fatherRegion.saveChunkData(data, Xpos, Zpos);
+            fatherRegion.saveChunkData(data,pos);
     }
 
 #if UNITY_EDITOR
@@ -130,11 +106,13 @@ public class Chunk : MonoBehaviour
             //Gizmos.color = new Color(1f,0.28f,0f);
             Gizmos.color = Color.Lerp(Color.red, Color.magenta, ((transform.position.x + transform.position.z) % 100) / 100);
 
-
-            Gizmos.DrawWireCube(transform.position,new Vector3(Constants.CHUNK_SIDE, Constants.MAX_HEIGHT * Constants.VOXEL_SIDE, Constants.CHUNK_SIDE));
+            Gizmos.DrawWireCube(transform.position,BoxSide);
         }
     }
 #endif
+
+    public static float3 BoxSide => new float3(Constants.CHUNK_SIDE, Constants.MAX_HEIGHT * Constants.VOXEL_SIDE, Constants.CHUNK_SIDE);
+    public static float3 BoxSize => new float3(Constants.CHUNK_SIZE, Constants.MAX_HEIGHT, Constants.CHUNK_SIZE);
 }
 
 

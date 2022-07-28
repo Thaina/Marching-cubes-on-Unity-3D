@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using Unity.Mathematics;
 
 public class Region
 {
@@ -43,7 +44,7 @@ public class Region
     public byte[] GetChunkData(int index)
     {
         int startPos = Constants.REGION_LOOKTABLE_BYTES + (index-1)*Constants.CHUNK_BYTES; // index-1 because the lookTable start at 1. LookTable position 10 = chunk data position 9.
-        byte[] chunk = new byte[Constants.CHUNK_BYTES];
+        var chunk = new byte[Constants.CHUNK_BYTES];
 
         for (int i = startPos, j = 0; i < (startPos + Constants.CHUNK_BYTES); i ++,j++)
         {
@@ -56,10 +57,10 @@ public class Region
     /// <summary>
     /// Get the index from the lookTable, the first section of the regionData list<byte>.
     /// </summary>
-    public int GetChunkIndex(int x, int z)
+    public int GetChunkIndex(int2 key)
     {
 
-        int startPos = (x + z * Constants.REGION_SIZE) * Constants.REGION_LOOKTABLE_POS_BYTE + Constants.REGION_LOOKTABLE_POS_BYTE;
+        int startPos = (key.x + key.y * Constants.REGION_SIZE) * Constants.REGION_LOOKTABLE_POS_BYTE + Constants.REGION_LOOKTABLE_POS_BYTE;
         int index = 0;
 
         for (int i = 0; i< Constants.REGION_LOOKTABLE_POS_BYTE; i++)
@@ -76,12 +77,12 @@ public class Region
     /// <summary>
     /// save a chunk byte[] data in the regionData list<byte> of the Chunk class.
     /// </summary>
-    public void saveChunkData(byte[] chunkData, int x, int z)
+    public void saveChunkData(byte[] chunkData, int2 key)
     {
-        int chunksDataStartPos = GetChunkIndex(x,z); 
+        int chunksDataStartPos = GetChunkIndex(key); 
         if(chunksDataStartPos == 0)//Chunk no saved, assign a new position in the chunks data for the lookTable.
         {
-            int lookTablePos = (x + z * Constants.REGION_SIZE) * Constants.REGION_LOOKTABLE_POS_BYTE + Constants.REGION_LOOKTABLE_POS_BYTE ;
+            int lookTablePos = (key.x + key.y * Constants.REGION_SIZE) * Constants.REGION_LOOKTABLE_POS_BYTE + Constants.REGION_LOOKTABLE_POS_BYTE ;
             int increasePos = Constants.REGION_LOOKTABLE_POS_BYTE - 1;
             for (int i = Constants.REGION_LOOKTABLE_POS_BYTE-1; i >= 0; i--)
             {

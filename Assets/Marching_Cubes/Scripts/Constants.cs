@@ -45,8 +45,6 @@ public static class Constants
     public const float MATERIAL_SIZE = (float)MATERIAL_FOR_ROW / (float)NUMBER_MATERIALS;
     public const float MATERIAL_OFFSET = MATERIAL_SIZE / 2f;
 
-
-
     #endregion
 
 

@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class B_Mountains : Biome
@@ -20,10 +21,10 @@ public class B_Mountains : Biome
 	public float dirtLevel = 0.25f;
 
 
-	public override byte[] GenerateChunkData(Vector2Int vecPos, float[] biomeMerge)
+	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
 		int surfaceStart = NoiseManager.Instance.worldConfig.surfaceLevel ;//Avoid too high value that generate bad mesh
-		byte[] chunkData = new byte[Constants.CHUNK_BYTES];
+		var chunkData = new byte[Constants.CHUNK_BYTES];
 		float[] noise = NoiseManager.GenerateExtendedNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		for (int z = 0; z < Constants.CHUNK_VERTEX_SIZE; z++)//start a 1 because the noise start at -1 of the chunk vertex
 		{

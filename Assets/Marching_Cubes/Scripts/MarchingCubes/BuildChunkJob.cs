@@ -6,7 +6,7 @@ using Unity.Burst;
 using Unity.Mathematics;
 
 [BurstCompile]//For test without burst, just remove this flag.
-public struct BuildChunkJob : IJob
+public struct BuildChunkJob : IJob,INativeDisposable
 {
     [ReadOnly]public NativeArray<byte> chunkData;
     [WriteOnly]public NativeList<float3> vertex;
@@ -15,6 +15,18 @@ public struct BuildChunkJob : IJob
     [ReadOnly] public int isoLevel;
     [ReadOnly] public bool interpolate;
 
+	public JobHandle Dispose(JobHandle inputDeps)
+	{
+		return chunkData.Dispose(uv.Dispose(vertex.Dispose(inputDeps)));
+	}
+
+	public void Dispose()
+	{
+        vertex.Dispose();
+        uv.Dispose();
+        chunkData.Dispose();
+	}
+
     /// <summary>
     /// Called when run the job.
     /// </summary>
@@ -22,25 +34,24 @@ public struct BuildChunkJob : IJob
     {
         for (int y = 0; y < Constants.MAX_HEIGHT; y++)//height
         {
-            for (int z = 1; z < Constants.CHUNK_SIZE + 1; z++)//column, start at 1, because Z axis is inverted and need -1 as offset
+            for (int z = 0; z < Constants.CHUNK_SIZE + 0; z++)//column, start at 1, because Z axis is inverted and need -1 as offset
             {
                 for (int x = 0; x < Constants.CHUNK_SIZE; x++)//line 
                 {
-                    NativeArray<float4> cube = new NativeArray<float4>(8,Allocator.Temp);
+                    var cube = new NativeArray<float4>(8,Allocator.Temp);
                     int mat = Constants.NUMBER_MATERIALS;
-                    cube[0] = CalculateVertexChunk(x, y, z, ref mat);
-                    cube[1] = CalculateVertexChunk(x + 1, y, z, ref mat);
-                    cube[2] = CalculateVertexChunk(x + 1, y, z - 1, ref mat);
-                    cube[3] = CalculateVertexChunk(x, y, z - 1, ref mat);
-                    cube[4] = CalculateVertexChunk(x, y + 1, z, ref mat);
-                    cube[5] = CalculateVertexChunk(x + 1, y + 1, z, ref mat);
-                    cube[6] = CalculateVertexChunk(x + 1, y + 1, z - 1, ref mat);
-                    cube[7] = CalculateVertexChunk(x, y + 1, z - 1, ref mat);
+                    var pos = new int3(x,y,z);
+                    cube[0] = CalculateVertexChunk(pos + new int3(0,0,1), ref mat);
+                    cube[1] = CalculateVertexChunk(pos + new int3(1,0,1), ref mat);
+                    cube[2] = CalculateVertexChunk(pos + new int3(1,0,0), ref mat);
+                    cube[3] = CalculateVertexChunk(pos + new int3(0,0,0), ref mat);
+                    cube[4] = CalculateVertexChunk(pos + new int3(0,1,1), ref mat);
+                    cube[5] = CalculateVertexChunk(pos + new int3(1,1,1), ref mat);
+                    cube[6] = CalculateVertexChunk(pos + new int3(1,1,0), ref mat);
+                    cube[7] = CalculateVertexChunk(pos + new int3(0,1,0), ref mat);
                     CalculateVertex(cube, mat);
                 }
-
             }
-
         }
     }
 
@@ -73,44 +84,25 @@ public struct BuildChunkJob : IJob
 
 
             const float uvOffset = 0.01f; //Small offset for avoid pick pixels of other textures
+            const float outerOffset = Constants.MATERIAL_SIZE - uvOffset;
             //NEED REWORKING FOR CORRECT WORKING, now have problems with the directions of the uv
-            if (i % 6 == 0)
-                uv.Add(new float2(Constants.MATERIAL_SIZE * (colorVert % Constants.MATERIAL_FOR_ROW) + Constants.MATERIAL_SIZE - uvOffset,
-                                  1 - Constants.MATERIAL_SIZE * Mathf.Floor(colorVert / Constants.MATERIAL_FOR_ROW) - uvOffset));
-            else if (i % 6 == 1)
-                uv.Add(new float2(Constants.MATERIAL_SIZE * (colorVert % Constants.MATERIAL_FOR_ROW) + Constants.MATERIAL_SIZE - uvOffset,
-                                  1 - Constants.MATERIAL_SIZE * Mathf.Floor(colorVert / Constants.MATERIAL_FOR_ROW) - Constants.MATERIAL_SIZE + uvOffset));
-            else if (i % 6 == 2)
-                uv.Add(new float2(Constants.MATERIAL_SIZE * (colorVert % Constants.MATERIAL_FOR_ROW) + uvOffset,
-                                  1 - Constants.MATERIAL_SIZE * Mathf.Floor(colorVert / Constants.MATERIAL_FOR_ROW) - uvOffset));
-            else if (i % 6 == 3)
-                uv.Add(new float2(Constants.MATERIAL_SIZE * (colorVert % Constants.MATERIAL_FOR_ROW + uvOffset),
-                                  1 - Constants.MATERIAL_SIZE * Mathf.Floor(colorVert / Constants.MATERIAL_FOR_ROW) - Constants.MATERIAL_SIZE + uvOffset));
-            else if (i % 6 == 4)
-                uv.Add(new float2(Constants.MATERIAL_SIZE * (colorVert % Constants.MATERIAL_FOR_ROW) + Constants.MATERIAL_SIZE - uvOffset,
-                                  1 - Constants.MATERIAL_SIZE * Mathf.Floor(colorVert / Constants.MATERIAL_FOR_ROW) - Constants.MATERIAL_SIZE + uvOffset));
-            else if (i % 6 == 5)
-                uv.Add(new float2(Constants.MATERIAL_SIZE * (colorVert % Constants.MATERIAL_FOR_ROW) + uvOffset,
-                                  1 - Constants.MATERIAL_SIZE * Mathf.Floor(colorVert / Constants.MATERIAL_FOR_ROW) - uvOffset));
 
-
+            var cuv = Constants.MATERIAL_SIZE * new float2(colorVert % Constants.MATERIAL_FOR_ROW,colorVert / Constants.MATERIAL_FOR_ROW);
+            cuv += new float2((i % 6 == 0 || i % 6 == 1 || i % 6 == 4) ? outerOffset : uvOffset,(i % 6 == 1 || i % 6 == 3 || i % 6 == 4) ? outerOffset : uvOffset);
+            uv.Add(new float2(cuv.x,1 - cuv.y));
         }
     }
 
     /// <summary>
     /// Calculate the data of a vertex of a voxel
     /// </summary>
-    private float4 CalculateVertexChunk(int x, int y, int z, ref int colorVoxel)
+    private float4 CalculateVertexChunk(int3 pos, ref int colorVoxel)
     {
-        int index = (x + z * Constants.CHUNK_VERTEX_SIZE + y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
+        int index = (pos.x + pos.z * Constants.CHUNK_VERTEX_SIZE + pos.y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
         int material = chunkData[index + 1];
         if (chunkData[index] >= isoLevel && material < colorVoxel)
             colorVoxel = material;
-        return new float4(
-            (x - Constants.CHUNK_SIZE / 2) * Constants.VOXEL_SIDE,
-            (y - Constants.MAX_HEIGHT / 2) * Constants.VOXEL_SIDE,
-            (z - Constants.CHUNK_SIZE / 2) * Constants.VOXEL_SIDE,
-            chunkData[index]);
+        return new float4((pos - Chunk.BoxSize / 2) * Constants.VOXEL_SIDE,chunkData[index]);
     }
 
     #region helpMethods
@@ -120,7 +112,7 @@ public struct BuildChunkJob : IJob
     public float3 interporlateVertex(float4 p1, float4 p2, out float interpolation)
     {
         interpolation = (isoLevel - p1.w) / (p2.w - p1.w);
-        return math.lerp(new float3(p1.x,p1.y,p1.z), new float3(p2.x,p2.y,p2.z), interpolation);
+        return math.lerp(p1.xyz, p2.xyz, interpolation);
     }
     /// <summary>
     /// Calculate the middle point between two vertex, for no interpolation voxel building.
@@ -129,11 +121,11 @@ public struct BuildChunkJob : IJob
     {
         return new float3(p1.x+p2.x, p1.y+p2.y, p1.z+p2.z) / 2;
     }
-    #endregion
+	#endregion
 
-    #region mesh building tables
-    //Mesh build tables
-    public static readonly int[] jobEdgeTable = new int[]{
+	#region mesh building tables
+	//Mesh build tables
+	public static readonly int[] jobEdgeTable = new int[]{
         0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
         0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
         0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,

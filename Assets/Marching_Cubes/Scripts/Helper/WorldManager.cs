@@ -119,7 +119,7 @@ public class WorldManager : Singleton<WorldManager>
         else
         {
             Debug.LogError("No worldConfig.json exist, generating a new one, using the default parameters.");
-            NoiseManager.WorldConfig newWorldConfig = new NoiseManager.WorldConfig();
+            var newWorldConfig = new NoiseManager.WorldConfig();
             newWorldConfig.worldSeed = Random.Range(int.MinValue, int.MaxValue);
             string worldConfig = JsonUtility.ToJson(newWorldConfig);
             File.WriteAllText(Application.persistentDataPath + WORLDS_DIRECTORY + '/' + selectedWorld + "/worldConfig.json", worldConfig);
