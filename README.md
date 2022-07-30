@@ -1,3 +1,8 @@
+## Forked
+
+- Update code to use Unity.Mathematics and Utilize more native jobs
+- Remove deprecated code
+
 # Marching-cubes-on-Unity-3D
 Terrain voxel engine with the use of Marching Cubes implemented in Unity 2020.3.17f1 (LTS). You can clone and run the project or download only the [Marching_cubes folder](https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/Javier-Garzo/Marching-cubes-on-Unity-3D/tree/master/Assets/Marching_Cubes) and add to your project assets.
 

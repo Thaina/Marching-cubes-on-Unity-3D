@@ -6,7 +6,7 @@ using Unity.Burst;
 using Unity.Mathematics;
 
 [BurstCompile]//For test without burst, just remove this flag.
-public struct BuildChunkJob : IJob,INativeDisposable
+public struct BuildChunkJob : IJobFor,INativeDisposable
 {
     [ReadOnly]public NativeArray<byte> chunkData;
     [WriteOnly]public NativeList<float3> vertex;
@@ -27,32 +27,29 @@ public struct BuildChunkJob : IJob,INativeDisposable
         chunkData.Dispose();
 	}
 
+    public const int ChunkSize = Constants.CHUNK_SIZE * Constants.CHUNK_SIZE * Constants.MAX_HEIGHT;
+
     /// <summary>
     /// Called when run the job.
     /// </summary>
-    public void Execute()
+    public void Execute(int index)
     {
-        for (int y = 0; y < Constants.MAX_HEIGHT; y++)//height
-        {
-            for (int z = 0; z < Constants.CHUNK_SIZE + 0; z++)//column, start at 1, because Z axis is inverted and need -1 as offset
-            {
-                for (int x = 0; x < Constants.CHUNK_SIZE; x++)//line 
-                {
-                    var cube = new NativeArray<float4>(8,Allocator.Temp);
-                    int mat = Constants.NUMBER_MATERIALS;
-                    var pos = new int3(x,y,z);
-                    cube[0] = CalculateVertexChunk(pos + new int3(0,0,1), ref mat);
-                    cube[1] = CalculateVertexChunk(pos + new int3(1,0,1), ref mat);
-                    cube[2] = CalculateVertexChunk(pos + new int3(1,0,0), ref mat);
-                    cube[3] = CalculateVertexChunk(pos + new int3(0,0,0), ref mat);
-                    cube[4] = CalculateVertexChunk(pos + new int3(0,1,1), ref mat);
-                    cube[5] = CalculateVertexChunk(pos + new int3(1,1,1), ref mat);
-                    cube[6] = CalculateVertexChunk(pos + new int3(1,1,0), ref mat);
-                    cube[7] = CalculateVertexChunk(pos + new int3(0,1,0), ref mat);
-                    CalculateVertex(cube, mat);
-                }
-            }
-        }
+        var pos = new int3(index % Constants.CHUNK_SIZE,0,0);
+        int i = index / Constants.CHUNK_SIZE;
+        pos.z = i % Constants.CHUNK_SIZE;//column
+        pos.y = i / Constants.CHUNK_SIZE;//height
+
+        var cube = new NativeArray<float4>(8,Allocator.Temp);
+        int mat = Constants.NUMBER_MATERIALS;
+        cube[0] = CalculateVertexChunk(pos + new int3(0,0,1), ref mat);
+        cube[1] = CalculateVertexChunk(pos + new int3(1,0,1), ref mat);
+        cube[2] = CalculateVertexChunk(pos + new int3(1,0,0), ref mat);
+        cube[3] = CalculateVertexChunk(pos + new int3(0,0,0), ref mat);
+        cube[4] = CalculateVertexChunk(pos + new int3(0,1,1), ref mat);
+        cube[5] = CalculateVertexChunk(pos + new int3(1,1,1), ref mat);
+        cube[6] = CalculateVertexChunk(pos + new int3(1,1,0), ref mat);
+        cube[7] = CalculateVertexChunk(pos + new int3(0,1,0), ref mat);
+        CalculateVertex(cube, mat);
     }
 
     /// <summary>
@@ -77,11 +74,7 @@ public struct BuildChunkJob : IJob,INativeDisposable
             int v2 = jobCornerIndexBFromEdge[jobTriTable[i]];
 
             float weight = 1;//Unused variable, must be used for interpolation terrain
-            if (interpolate)
-                vertex.Add(interporlateVertex(cube[v1], cube[v2], out weight));
-            else
-                vertex.Add(midlePointVertex(cube[v1], cube[v2]));
-
+            vertex.Add(interpolate ? interporlateVertex(cube[v1], cube[v2], out weight) : midlePointVertex(cube[v1], cube[v2]));
 
             const float uvOffset = 0.01f; //Small offset for avoid pick pixels of other textures
             const float outerOffset = Constants.MATERIAL_SIZE - uvOffset;
