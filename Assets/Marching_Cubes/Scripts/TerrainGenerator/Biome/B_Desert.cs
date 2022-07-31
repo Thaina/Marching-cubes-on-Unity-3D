@@ -16,43 +16,35 @@ public class B_Desert : Biome
 	{
 		var chunkData = new byte[Constants.CHUNK_BYTES];
 		float[] noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
-		for (int z = 0; z < Constants.CHUNK_VERTEX_SIZE; z++)
+		for (int n = 0; n < Constants.CHUNK_VERTEX_AREA; n++)
 		{
-			for (int x = 0; x < Constants.CHUNK_VERTEX_SIZE; x++)
+			// Get surface height of the x,z position 
+			float height = NoiseManager.Instance.worldConfig.surfaceLevel + Mathf.Lerp(0,//Biome merge height
+				(terrainHeightCurve.Evaluate(noise[n]) * 2 - 1) * maxHeightDifference,//Desired biome height
+				biomeMerge[n]);//Merge value,0 = full merge, 1 = no merge
+
+			int heightY = Mathf.CeilToInt(height);//Vertex Y where surface start
+			int lastVertexWeigh = (int)((255 - isoLevel) * (height % 1) + isoLevel);//Weigh of the last vertex
+
+			for (int y = 0; y < Constants.CHUNK_VERTEX_HEIGHT; y++)
 			{
-				// Get surface height of the x,z position 
-				float height = Mathf.Lerp(
-					NoiseManager.Instance.worldConfig.surfaceLevel,//Biome merge height
-					(((terrainHeightCurve.Evaluate(noise[x + z * Constants.CHUNK_VERTEX_SIZE]) * 2 - 1) * maxHeightDifference) + NoiseManager.Instance.worldConfig.surfaceLevel),//Desired biome height
-					biomeMerge[x + z * Constants.CHUNK_VERTEX_SIZE]);//Merge value,0 = full merge, 1 = no merge
-
-				int heightY = Mathf.CeilToInt(height);//Vertex Y where surface start
-				int lastVertexWeigh = (int)((255 - isoLevel) * (height % 1) + isoLevel);//Weigh of the last vertex
-
-				for (int y = 0; y < Constants.CHUNK_VERTEX_HEIGHT; y++)
+				int index = ByteIndex(n,y);
+				if (y < heightY - sandDeep)
 				{
-					int index = (x + z * Constants.CHUNK_VERTEX_SIZE + y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
-					if (y < heightY - sandDeep)
-					{
-						chunkData[index] = 255;
-						chunkData[index + 1] = 4;//Rock
-					}
-					else if (y < heightY)
-					{
-						chunkData[index] = 255;
-						chunkData[index + 1] = 6;//sand
-					}
-					else if (y == heightY)
-					{
+					chunkData[index] = 255;
+					chunkData[index + 1] = 4;//Rock
+				}
+				else if (y > heightY)
+				{
+					chunkData[index] = 0;
+					chunkData[index + 1] = Constants.NUMBER_MATERIALS;
+				}
+				else
+				{
+					if (y == heightY)
 						chunkData[index] = (byte)lastVertexWeigh;
-						chunkData[index + 1] = 6;//sand
-
-					}
-					else
-					{
-						chunkData[index] = 0;
-						chunkData[index + 1] = Constants.NUMBER_MATERIALS;
-					}
+					else chunkData[index] = 255;
+					chunkData[index + 1] = 6;//sand
 				}
 			}
 		}

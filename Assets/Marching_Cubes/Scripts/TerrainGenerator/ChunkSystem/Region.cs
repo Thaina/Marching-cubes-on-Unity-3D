@@ -11,31 +11,22 @@ public class Region
     lookTable: Indicate the start position of the chunk data in the region Data byte list +REGION_LOOKTABLE_POS_BYTE. Because the 0 it's reserved for indicate empty chunk.
     chunks data: Contains the data of all chunks saved in the region*/
     private List<byte> regionData;
-    private int regionX;
-    private int regionZ;
+    private int2 region;
     private bool modified = false;
 
     /// <summary>
     /// Load the data of a region from a file.
     /// </summary>
-    public Region(int x, int z)
+    public Region(int2 location)
     {
         worldpath = WorldManager.GetSelectedWorldDir();
-        regionX = x;
-        regionZ = z;
+        region = location;
         if (File.Exists(DirectionChunkFile()))
         {
-            if (Constants.REGION_SAVE_COMPRESSED)
-            {
-                byte[] compressedRegion = File.ReadAllBytes(DirectionChunkFile());//Load compressed region
-                regionData = new List<byte>(CompressHelper.Decompress(compressedRegion));//Decompress the region data
-            }
-            else
-                regionData = new List<byte>(File.ReadAllBytes(DirectionChunkFile()));//Load region from a file
+            byte[] data = File.ReadAllBytes(DirectionChunkFile());
+            regionData = new List<byte>(Constants.REGION_SAVE_COMPRESSED ? CompressHelper.Decompress(data) : data);
         }
-        else
-            regionData = new List<byte>(new byte[Constants.REGION_LOOKTABLE_BYTES]);//Look table initialized, all 0
-
+        else regionData = new List<byte>(new byte[Constants.REGION_LOOKTABLE_BYTES]);//Look table initialized, all 0
     }
     
     /// <summary>
@@ -43,7 +34,7 @@ public class Region
     /// </summary>
     public byte[] GetChunkData(int index)
     {
-        int startPos = Constants.REGION_LOOKTABLE_BYTES + (index-1)*Constants.CHUNK_BYTES; // index-1 because the lookTable start at 1. LookTable position 10 = chunk data position 9.
+        int startPos = Constants.REGION_LOOKTABLE_BYTES + (index - 1) * Constants.CHUNK_BYTES; // index-1 because the lookTable start at 1. LookTable position 10 = chunk data position 9.
         var chunk = new byte[Constants.CHUNK_BYTES];
 
         for (int i = startPos, j = 0; i < (startPos + Constants.CHUNK_BYTES); i ++,j++)
@@ -123,21 +114,16 @@ public class Region
         if(!modified)
             return;
 
-        if(Constants.REGION_SAVE_COMPRESSED)
-        {
-            byte[] Compressed = CompressHelper.Compress(regionData.ToArray());
-            File.WriteAllBytes(DirectionChunkFile(), Compressed);
-        }
-        else
-            File.WriteAllBytes(DirectionChunkFile(), regionData.ToArray());
-
+        modified = false;
+        byte[] data = regionData.ToArray();
+        File.WriteAllBytes(DirectionChunkFile(),Constants.REGION_SAVE_COMPRESSED ? CompressHelper.Compress(data) : data);
     }
 
 
     //Help function, get chunk file direction.
     private string DirectionChunkFile()
     {
-        return worldpath + "/"+ regionX + "."+ regionZ + ".reg";
+        return worldpath + "/"+ region.x + "."+ region.y + ".reg";
     }
 
 

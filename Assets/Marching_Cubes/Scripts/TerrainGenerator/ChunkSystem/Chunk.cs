@@ -58,7 +58,7 @@ public class Chunk : MonoBehaviour
     /// <param name="mat"></param>
     public void modifyTerrain(int3 vertexPoint, int modification, int mat = 0)
     {
-        int byteIndex = ByteIndex(vertexPoint);
+        int byteIndex = Biome.ByteIndex(vertexPoint);
 
         int value = data[byteIndex];
         byte newValue = (byte)math.clamp(value + modification, 0, 255);
@@ -82,10 +82,9 @@ public class Chunk : MonoBehaviour
     /// </summary>
     public byte GetMaterial(int3 vertexPoint)
     {
-        return data[ByteIndex(vertexPoint) + 1];
+        return data[Biome.ByteIndex(vertexPoint) + 1];
     }
 
-    public static int ByteIndex(int3 vertexPoint) => (vertexPoint.x + vertexPoint.z * Constants.CHUNK_VERTEX_SIZE + vertexPoint.y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
     public static float3 VertexSize => new float3(Constants.CHUNK_VERTEX_SIZE,Constants.CHUNK_VERTEX_HEIGHT,Constants.CHUNK_VERTEX_SIZE);
 
     /// <summary>
@@ -106,12 +105,11 @@ public class Chunk : MonoBehaviour
             //Gizmos.color = new Color(1f,0.28f,0f);
             Gizmos.color = Color.Lerp(Color.red, Color.magenta, ((transform.position.x + transform.position.z) % 100) / 100);
 
-            Gizmos.DrawWireCube(transform.position,BoxSide);
+            Gizmos.DrawWireCube(transform.position,BoxSize * Constants.VOXEL_SIDE);
         }
     }
 #endif
 
-    public static float3 BoxSide => new float3(Constants.CHUNK_SIDE, Constants.MAX_HEIGHT * Constants.VOXEL_SIDE, Constants.CHUNK_SIDE);
     public static float3 BoxSize => new float3(Constants.CHUNK_SIZE, Constants.MAX_HEIGHT, Constants.CHUNK_SIZE);
 }
 

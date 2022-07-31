@@ -19,6 +19,9 @@ abstract public class Biome : MonoBehaviour
 
 	protected int isoLevel;
 
+	public static int ByteIndex(int n,int y) => (n + y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
+	public static int ByteIndex(int3 p) => ByteIndex(p.x + p.z * Constants.CHUNK_VERTEX_SIZE,p.y);
+
 	public virtual void Start()
 	{
 		isoLevel = MeshBuilder.Instance.isoLevel;

@@ -23,63 +23,51 @@ public class B_Mountains : Biome
 
 	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
-		int surfaceStart = NoiseManager.Instance.worldConfig.surfaceLevel ;//Avoid too high value that generate bad mesh
+		int surfaceStart = NoiseManager.Instance.worldConfig.surfaceLevel;//Avoid too high value that generate bad mesh
 		var chunkData = new byte[Constants.CHUNK_BYTES];
-		float[] noise = NoiseManager.GenerateExtendedNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
-		for (int z = 0; z < Constants.CHUNK_VERTEX_SIZE; z++)//start a 1 because the noise start at -1 of the chunk vertex
+		var noise = NoiseManager.GenerateExtendedNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
+		for (int a = 0; a < Constants.CHUNK_VERTEX_AREA; a++)//start a 1 because the noise start at -1 of the chunk vertex
 		{
-			for (int x = 0; x < Constants.CHUNK_VERTEX_SIZE ; x++)//start a 1 because the noise start at -1 of the chunk vertex
+			var p = Constants.DivMod(a,Constants.CHUNK_VERTEX_SIZE);
+			// Get surface height of the x,z position 1276120704
+			float height = surfaceStart + Mathf.Lerp(0,//Biome merge height
+				terrainHeightCurve.Evaluate(noise[Noise.Index(p)]) * (maxSurfaceheight - surfaceStart),//Desired biome height
+				biomeMerge[a]);//Merge value,0 = full merge, 1 = no merge
+
+			//557164096
+			int heightY = Mathf.CeilToInt(height);//Vertex Y where surface start
+			int lastVertexWeigh = (int)((255 - isoLevel) * (height % 1) + isoLevel);//Weigh of the last vertex
+			float slope = CalculateSlope(p, noise);
+
+			for (int y = 0; y < Constants.CHUNK_VERTEX_HEIGHT; y++)
 			{
-				// Get surface height of the x,z position 1276120704
-				float height = Mathf.Lerp(
-					NoiseManager.Instance.worldConfig.surfaceLevel,//Biome merge height
-					(terrainHeightCurve.Evaluate(noise[(x+1) + (z+1) * (Constants.CHUNK_VERTEX_SIZE + 2)]) * (maxSurfaceheight - surfaceStart) + surfaceStart),//Desired biome height
-					biomeMerge[x + z * Constants.CHUNK_VERTEX_SIZE]);//Merge value,0 = full merge, 1 = no merge
-
-				//557164096
-				int heightY = Mathf.CeilToInt(height);//Vertex Y where surface start
-				int lastVertexWeigh = (int)((255 - isoLevel) * (height % 1) + isoLevel);//Weigh of the last vertex
-				float slope = CalculateSlope((x+1), (z+1), noise);
-
-				for (int y = 0; y < Constants.CHUNK_VERTEX_HEIGHT; y++)
+				int index = ByteIndex(a,y);//apply x-1 and z-1 for get the correct index
+				if (y < heightY)
 				{
-					int index = (x + z * Constants.CHUNK_VERTEX_SIZE + y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;//apply x-1 and z-1 for get the correct index
-					if (y < heightY - 5)
-					{
-						chunkData[index] = 255;
+					chunkData[index] = 255;
+					if (y < heightY - 5 || slope > rockLevel)
 						chunkData[index + 1] = 4;//Rock
-					}
-					else if (y < heightY)
-					{
-						chunkData[index] = 255;
-						if (slope > rockLevel)
-							chunkData[index + 1] = 4;//Rock
-						else if (slope < dirtLevel && y > snowHeight)//Avoid dirt in snow areas
-							chunkData[index + 1] = 3;
-						else
-							chunkData[index + 1] = 1;//dirt
-					}
-					else if (y == heightY)
-					{
-						chunkData[index] = (byte)lastVertexWeigh;//
-						if (slope > rockLevel)
-							chunkData[index + 1] = 4;//Mountain Rock
-						else if (slope > dirtLevel)
-							chunkData[index + 1] = 1;//dirt
-						else
-						{
-							if (y > snowHeight)
-								chunkData[index + 1] = 3;//snow
-							else
-								chunkData[index + 1] = 0;//grass
-						}
-
-					}
+					else if (slope < dirtLevel && y > snowHeight)//Avoid dirt in snow areas
+						chunkData[index + 1] = 3;
 					else
-					{
-						chunkData[index] = 0;
-						chunkData[index + 1] = Constants.NUMBER_MATERIALS;
-					}
+						chunkData[index + 1] = 1;//dirt
+				}
+				else if (y == heightY)
+				{
+					chunkData[index] = (byte)lastVertexWeigh;//
+					if (slope > rockLevel)
+						chunkData[index + 1] = 4;//Mountain Rock
+					else if (slope > dirtLevel)
+						chunkData[index + 1] = 1;//dirt
+					else if (y > snowHeight)
+						chunkData[index + 1] = 3;//snow
+					else
+						chunkData[index + 1] = 0;//grass
+				}
+				else
+				{
+					chunkData[index] = 0;
+					chunkData[index + 1] = Constants.NUMBER_MATERIALS;
 				}
 			}
 		}
@@ -89,19 +77,19 @@ public class B_Mountains : Biome
 	/// <summary>
 	/// Function that calculate the slope of the terrain
 	/// </summary>
-	private float CalculateSlope(int x, int z, float[] noise)
+	private float CalculateSlope(int2 p, float[] noise)
 	{
 		float minValue = 1000;
-		for (int xOffset = x - 1; xOffset <= x + 1; xOffset += 1)
+		for (int x = -1; x <= 1; x++)
 		{
-			for (int zOffset = z - 1; zOffset <= z + 1; zOffset += 1)
+			for (int z = -1; z <= 1; z++)
 			{
-				float value = terrainHeightCurve.Evaluate(noise[xOffset + zOffset * (Constants.CHUNK_VERTEX_SIZE + 2)]);
+				float value = terrainHeightCurve.Evaluate(noise[Noise.Index(p + new int2(x,z))]);
 				if (value < minValue)
 					minValue = value;
 			}
 		}
-		float pointValue = terrainHeightCurve.Evaluate(noise[x + z * (Constants.CHUNK_VERTEX_SIZE + 2)]);
-		return (1 - (minValue / pointValue)) * (hightMatMult.Evaluate(pointValue) * heightMatOffset); ;
+		float pointValue = terrainHeightCurve.Evaluate(noise[Noise.Index(p)]);
+		return (1 - (minValue / pointValue)) * (hightMatMult.Evaluate(pointValue) * heightMatOffset);
 	}
 }

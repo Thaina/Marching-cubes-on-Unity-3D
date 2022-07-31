@@ -1,7 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+
 using UnityEngine;
-using System.IO;
+
 using Unity.Mathematics;
 
 public class ChunkManager : Singleton<ChunkManager>
@@ -51,7 +52,8 @@ public class ChunkManager : Singleton<ChunkManager>
         {
             for (int z = init.y-1; z < init.y + 2; z++)
             {
-                regionDict.Add(new int2(x,z), new Region(x,z));
+                var key = new int2(x,z);
+                regionDict.Add(key,new Region(key));
             }
         }
     }
@@ -67,7 +69,8 @@ public class ChunkManager : Singleton<ChunkManager>
         {
             for (int z = init.y-1; z < init.y + 2; z++)
             {
-                newRegionDict.Add(new int2(x,z),regionDict.Remove(new int2(x,z),out var region) ? region : new Region(x, z));
+                var key = new int2(x,z);
+                newRegionDict.Add(key,regionDict.Remove(key,out var region) ? region : new Region(key));
             }
         }
 
@@ -127,14 +130,14 @@ public class ChunkManager : Singleton<ChunkManager>
         }
     }
 
-    static int2 ActualChunk(float3 pos) => new int2(math.ceil((pos.xz - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE));
+    static int2 ActualChunk(float3 pos,float2 shift) => new int2(math.ceil((pos.xz + shift - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE));
 
     /// <summary>
     /// Load in chunkLoadList or active Gameobject chunks at the chunkViewDistance radius of the player
     /// </summary>
     void CheckNewChunks()
     {
-        var actualChunk = ActualChunk(player.position);
+        var actualChunk = ActualChunk(player.position,0);
         //Debug.Log("Actual chunk: " + actualChunk);
         for(int x = actualChunk.x - chunkViewDistance; x < actualChunk.x + chunkViewDistance; x++)
         {
@@ -181,7 +184,7 @@ public class ChunkManager : Singleton<ChunkManager>
         int chunkIndexInRegion = region.GetChunkIndex(keyInsideChunk);
         bool isFromRegion = chunkIndexInRegion != 0;
         var chunkData = isFromRegion ? region.GetChunkData(chunkIndexInRegion) : noiseManager.GenerateChunkData(key);//Generate chunk with the noise generator
-        chunkDict.Add(key, chunkObj.AddComponent<Chunk>().ChunkInit(chunkData, keyInsideChunk, region, isFromRegion ? false : Constants.SAVE_GENERATED_CHUNKS));
+        chunkDict.Add(key, chunkObj.AddComponent<Chunk>().ChunkInit(chunkData, keyInsideChunk, region, !isFromRegion && Constants.SAVE_GENERATED_CHUNKS));
     }
 
     /// <summary>
@@ -220,7 +223,7 @@ public class ChunkManager : Singleton<ChunkManager>
         //Chunk voxel position (based on the chunk system)
         var vertexOrigin = (int3)modificationPoint;
 
-        //intRange (convert Vector3 real world range to the voxel size range)
+        //intRange (convert vec3 real world range to the voxel size range)
         int intRange = (int)(range * Constants.VOXEL_SIDE / 2);//range /2 because the for is from -intRange to +intRange
 
         for (int y = -intRange; y <= intRange; y++)
@@ -243,7 +246,7 @@ public class ChunkManager : Singleton<ChunkManager>
                     }
 
                     //Chunk of the vertexPoint
-                    var hitChunk = new int2(math.ceil((vertexPoint.xz + 1 - Constants.CHUNK_SIZE / 2) / Constants.CHUNK_SIZE));
+                    var hitChunk = ActualChunk(vertexPoint,1);
                     //Position of the vertexPoint in the chunk (x,y,z)
                     var vertexChunk = (int3)(vertexPoint - new float3() { xz = hitChunk * Constants.CHUNK_SIZE } + Chunk.VertexSize / 2);
 
@@ -295,7 +298,7 @@ public class ChunkManager : Singleton<ChunkManager>
             };
 
             //Chunk of the vertexPoint
-            var hitChunk = new int2(math.ceil(nextVertexPoint.xz + 1 - Constants.CHUNK_SIDE / 2) / Constants.CHUNK_SIDE);
+            var hitChunk = ActualChunk(nextVertexPoint,1);
             //Position of the vertexPoint in the chunk (x,y,z)
             var vertexChunk = new int3(nextVertexPoint - new float3() { xz = hitChunk * Constants.CHUNK_SIZE } + Chunk.VertexSize / 2);
 
@@ -333,10 +336,10 @@ public class ChunkManager : Singleton<ChunkManager>
         if (debugMode && Application.isPlaying)
         {
             //Show chunk
-            var actualChunk = ActualChunk(player.position);
+            var actualChunk = ActualChunk(player.position,0);
             var chunkCenter = new float3() { xz = (float2)actualChunk * Constants.CHUNK_SIDE };
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireCube(chunkCenter,Chunk.BoxSide);
+            Gizmos.DrawWireCube(chunkCenter,Chunk.BoxSize * Constants.VOXEL_SIDE);
 
             //Show voxel
             if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out var hitInfo, 100.0f))

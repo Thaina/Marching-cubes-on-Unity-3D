@@ -31,22 +31,25 @@ public static class Constants
 
     # region auto-configurable variables
     public const int REGION_CHUNKS = REGION_SIZE * REGION_SIZE;
-    public const int CHUNK_BYTES = (CHUNK_SIZE+1) * (CHUNK_SIZE + 1) * (MAX_HEIGHT+1) * CHUNK_POINT_BYTE;//we need a extra vertex per voxel, CHUNK_SIZE + 1
-    public const int REGION_BYTES = REGION_SIZE * REGION_SIZE * CHUNK_BYTES;
-    public const int REGION_LOOKTABLE_BYTES = REGION_LOOKTABLE_POS_BYTE * REGION_SIZE * REGION_SIZE + REGION_LOOKTABLE_POS_BYTE;//REGION_LOOKTABLE_POS_BYTE offset because first position indicate the last writes position in the chunkTable
+    public const int REGION_BYTES = REGION_CHUNKS * CHUNK_BYTES;
+    public const int REGION_LOOKTABLE_BYTES = REGION_LOOKTABLE_POS_BYTE * (REGION_CHUNKS + 1);//REGION_LOOKTABLE_POS_BYTE offset because first position indicate the last writes position in the chunkTable
 
     public const float CHUNK_SIDE = CHUNK_SIZE * VOXEL_SIDE;
     public const int CHUNK_VOXEL_AREA = CHUNK_SIZE * CHUNK_SIZE;
+    public const int CHUNK_VOXEL_SIZE = CHUNK_VOXEL_AREA * MAX_HEIGHT;
     public const int CHUNK_VERTEX_SIZE = CHUNK_SIZE + 1;
     public const int CHUNK_VERTEX_HEIGHT = MAX_HEIGHT + 1;
     public const int CHUNK_VERTEX_AREA = CHUNK_VERTEX_SIZE * CHUNK_VERTEX_SIZE;
-    public const int CHUNK_TOTAL_VERTEX = CHUNK_VERTEX_SIZE * CHUNK_VERTEX_SIZE * CHUNK_VERTEX_HEIGHT;
+    public const int CHUNK_TOTAL_VERTEX = CHUNK_VERTEX_AREA * CHUNK_VERTEX_HEIGHT;
+
+    public const int CHUNK_BYTES = CHUNK_TOTAL_VERTEX * CHUNK_POINT_BYTE;//we need a extra vertex per voxel, CHUNK_SIZE + 1
 
     public const float MATERIAL_SIZE = (float)MATERIAL_FOR_ROW / (float)NUMBER_MATERIALS;
     public const float MATERIAL_OFFSET = MATERIAL_SIZE / 2f;
 
     #endregion
 
+	public static int2 DivMod(int n,int size) => new int2(n % size,n / size);
 
     #region mesh building
     //Mesh build tables

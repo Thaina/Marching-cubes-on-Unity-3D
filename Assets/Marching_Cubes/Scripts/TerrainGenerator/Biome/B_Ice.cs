@@ -30,55 +30,43 @@ public class B_Ice : Biome
 		var chunkData = new byte[Constants.CHUNK_BYTES];
 		float[] noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		float[] iceNoise = NoiseManager.GenerateNoiseMap(iceNoiseScale,2,IcePersistance,IceLacunarity, vecPos);
-		for (int z = 0; z < Constants.CHUNK_VERTEX_SIZE; z++)
+		for (int n = 0; n < Constants.CHUNK_VERTEX_AREA; n++)
 		{
-			for (int x = 0; x < Constants.CHUNK_VERTEX_SIZE; x++)
+			// Get surface height of the x,z position 
+			float height = NoiseManager.Instance.worldConfig.surfaceLevel + Mathf.Lerp(0,//Biome merge height
+				(terrainHeightCurve.Evaluate(noise[n]) * 2 - 1) * maxHeightDifference,//Desired biome height
+				biomeMerge[n]);//Merge value,0 = full merge, 1 = no merge
+
+			int heightY = Mathf.CeilToInt(height);//Vertex Y where surface start
+			int lastVertexWeigh = (int)((255 - isoLevel) * (height % 1) + isoLevel);//Weigh of the last vertex
+
+			//Ice calculations
+			int iceExtraHeigh = 0;
+			if (iceNoise[n] > iceApearValue)
+				iceExtraHeigh = Mathf.CeilToInt((1- iceNoise[n] ) / iceApearValue * iceMaxHeight);
+
+			for (int y = 0; y < Constants.CHUNK_VERTEX_HEIGHT; y++)
 			{
-				// Get surface height of the x,z position 
-				float height = Mathf.Lerp(
-					NoiseManager.Instance.worldConfig.surfaceLevel,//Biome merge height
-					(((terrainHeightCurve.Evaluate(noise[x + z * Constants.CHUNK_VERTEX_SIZE]) * 2 - 1) * maxHeightDifference) + NoiseManager.Instance.worldConfig.surfaceLevel),//Desired biome height
-					biomeMerge[x + z * Constants.CHUNK_VERTEX_SIZE]);//Merge value,0 = full merge, 1 = no merge
-
-				int heightY = Mathf.CeilToInt(height);//Vertex Y where surface start
-				int lastVertexWeigh = (int)((255 - isoLevel) * (height % 1) + isoLevel);//Weigh of the last vertex
-
-				//Ice calculations
-				int iceExtraHeigh = 0;
-				if (iceNoise[x + z * Constants.CHUNK_VERTEX_SIZE] > iceApearValue)
-					iceExtraHeigh = Mathf.CeilToInt((1- iceNoise[x + z * Constants.CHUNK_VERTEX_SIZE] ) / iceApearValue * iceMaxHeight);
-
-
-				for (int y = 0; y < Constants.CHUNK_VERTEX_HEIGHT; y++)
+				int index = ByteIndex(n,y);
+				if (y < heightY - snowDeep)
 				{
-					int index = (x + z * Constants.CHUNK_VERTEX_SIZE + y * Constants.CHUNK_VERTEX_AREA) * Constants.CHUNK_POINT_BYTE;
-					if (y < heightY - snowDeep)
-					{
+					chunkData[index] = 255;
+					chunkData[index + 1] = 4;//Rock
+				}
+				else if (y > heightY + iceExtraHeigh)
+				{
+					chunkData[index] = 0;
+					chunkData[index + 1] = Constants.NUMBER_MATERIALS;
+				}
+				else
+				{
+					if(y < heightY + iceExtraHeigh)
 						chunkData[index] = 255;
-						chunkData[index + 1] = 4;//Rock
-					}
-					else if (y < heightY+ iceExtraHeigh)
-					{
-						chunkData[index] = 255;
-						if(y <= heightY)
-							chunkData[index + 1] = 3;//snow
-						else
-							chunkData[index + 1] = 5;//ice
-					}
-					else if (y == heightY+ iceExtraHeigh)
-					{
-						chunkData[index] = (byte)lastVertexWeigh;
-						if (y <= heightY)
-							chunkData[index + 1] = 3;//snow
-						else
-							chunkData[index + 1] = 5;//ice
+					else chunkData[index] = (byte)lastVertexWeigh;
 
-					}
-					else
-					{
-						chunkData[index] = 0;
-						chunkData[index + 1] = Constants.NUMBER_MATERIALS;
-					}
+					if (y <= heightY)
+						chunkData[index + 1] = 3;//snow
+					else chunkData[index + 1] = 5;//ice
 				}
 			}
 		}

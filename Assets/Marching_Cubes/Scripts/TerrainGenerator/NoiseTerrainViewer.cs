@@ -19,7 +19,7 @@ public class NoiseTerrainViewer : MonoBehaviour
     private void Start()
     {
         noiseManager = NoiseManager.Instance;
-        fakeRegion = new Region(1000,1000);
+        fakeRegion = new Region(1000);
         GenerateTerrain();
     }
 

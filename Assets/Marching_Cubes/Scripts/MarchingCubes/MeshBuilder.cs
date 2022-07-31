@@ -34,7 +34,7 @@ public class MeshBuilder : Singleton<MeshBuilder>
 
         try
         {
-            var jobHandle = buildChunkJob.Schedule(BuildChunkJob.ChunkSize,default);
+            var jobHandle = buildChunkJob.Schedule(Constants.CHUNK_VOXEL_SIZE,default);
             jobHandle.Complete();
 
             //Get all the data from the jobs and use to generate a Mesh
