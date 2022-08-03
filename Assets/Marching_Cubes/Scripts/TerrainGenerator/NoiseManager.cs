@@ -48,6 +48,7 @@ public class NoiseManager : Singleton<NoiseManager>
 
 	public void Start()
 	{
+		Debug.Log("worldConfig.worldSeed : " + worldConfig.worldSeed);
 		if (worldConfig.worldSeed == 0 && !WorldManager.IsCreated())//Generate random seed when use 0 and is scene testing (no WorldManager exists)
 		{
 			Debug.Log("worldSeed 0 detected, generating random seed world");
@@ -59,10 +60,13 @@ public class NoiseManager : Singleton<NoiseManager>
 		else if((Constants.AUTO_CLEAR_WHEN_NOISE_CHANGE) && !WorldManager.IsCreated())//If AUTO_CLEAR_WHEN_NOISE_CHANGE true and world manager not exist, we clear old world data (we assume we are using a debug scene)
 		{
 			string selectedWorld = WorldManager.GetSelectedWorldName();
-			WorldConfig loadedWorldConfig = WorldManager.GetSelectedWorldConfig();
+			var loadedWorldConfig = WorldManager.GetSelectedWorldConfig();
+
 			//If worldConfig loaded is different to the current one, remove old data and save the new config
-			if(loadedWorldConfig.worldSeed != worldConfig.worldSeed || loadedWorldConfig.biomeScale != worldConfig.biomeScale || loadedWorldConfig.diffToMerge != worldConfig.diffToMerge || loadedWorldConfig.surfaceLevel != worldConfig.surfaceLevel ||
-				loadedWorldConfig.octaves != worldConfig.octaves || loadedWorldConfig.persistance != worldConfig.persistance || loadedWorldConfig.lacunarity != worldConfig.lacunarity)
+			if(loadedWorldConfig.worldSeed != worldConfig.worldSeed || loadedWorldConfig.biomeScale != worldConfig.biomeScale ||
+				loadedWorldConfig.diffToMerge != worldConfig.diffToMerge || loadedWorldConfig.surfaceLevel != worldConfig.surfaceLevel ||
+				loadedWorldConfig.octaves != worldConfig.octaves || loadedWorldConfig.persistance != worldConfig.persistance ||
+				loadedWorldConfig.lacunarity != worldConfig.lacunarity)
 			{
 				WorldManager.DeleteWorld(selectedWorld);//Remove old world
 				WorldManager.CreateWorld(selectedWorld, worldConfig);//Create new world with the new worldConfig
@@ -75,7 +79,7 @@ public class NoiseManager : Singleton<NoiseManager>
 		}
 		if(biomes.Length == 0)
 		{
-			Biome[] biomeArray = GetComponents<Biome>();
+			var biomeArray = GetComponents<Biome>();
 			biomes = new BiomeProperties[biomeArray.Length];
 			for (int i = 0; i< biomeArray.Length; i++)
 			{
@@ -183,7 +187,7 @@ public class NoiseManager : Singleton<NoiseManager>
 
 		for (int n = 0; n < noiseMap.Length; n++)
 		{
-			var p = Constants.DivMod(n,Constants.CHUNK_VERTEX_SIZE);
+			var p = Constants.ModDiv(n,Constants.CHUNK_VERTEX_SIZE);
 			amplitude = 1;
 			frequency = 1;
 			float noiseHeight = 0;
@@ -229,7 +233,7 @@ public class NoiseManager : Singleton<NoiseManager>
 
 		for (int n = 0; n < Noise.CHUNK_AREA; n++)
 		{
-			var p = Constants.DivMod(n,Noise.CHUNK_SIZE);
+			var p = Constants.ModDiv(n,Noise.CHUNK_SIZE);
 			amplitude = 1;
 			frequency = 1;
 			float noiseHeight = 0;
@@ -263,7 +267,7 @@ public class NoiseManager : Singleton<NoiseManager>
 
 		for (int n = 0; n < Constants.CHUNK_VERTEX_AREA; n++)
 		{
-			var sample = (Constants.DivMod(n,Constants.CHUNK_VERTEX_SIZE) + offset - halfVertexArea) / scale;
+			var sample = (Constants.ModDiv(n,Constants.CHUNK_VERTEX_SIZE) + offset - halfVertexArea) / scale;
 			noiseMap[n] = (noise.cnoise(sample) + 1) / 2;
 		}
 

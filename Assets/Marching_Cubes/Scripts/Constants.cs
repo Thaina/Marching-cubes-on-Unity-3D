@@ -49,7 +49,14 @@ public static class Constants
 
     #endregion
 
-	public static int2 DivMod(int n,int size) => new int2(n % size,n / size);
+    public static int3 CubePointOffSet(int i) => new int3(((i + 1) / 2) % 2,i / 4,1 - ((i / 2) % 2));
+
+	public static int2 ModDiv(int n,int size) => new int2(n % size,n / size);
+	public static int3 PositionXZY(int index,int3 size)
+    {
+        var p = ModDiv(index,size.x);
+        return new int3(p.x,p.y / size.z,p.y % size.z);
+    }
 
     #region mesh building
     //Mesh build tables
@@ -375,5 +382,50 @@ public static class Constants
         7
     };
     #endregion
+}
 
+public struct CubePoint<T>
+{
+    public T p001;
+    public T p101;
+    public T p100;
+    public T p000;
+    public T p011;
+    public T p111;
+    public T p110;
+    public T p010;
+
+    public T this[int i]
+    {
+        get
+        {
+            switch(i)
+            {
+                case 0: return p001;
+                case 1: return p101;
+                case 2: return p100;
+                case 3: return p000;
+                case 4: return p011;
+                case 5: return p111;
+                case 6: return p110;
+                case 7: return p010;
+                default: throw new System.IndexOutOfRangeException("i = " + i);
+            }
+        }
+        set
+        {
+            switch(i)
+            {
+                case 0: p001 = value; break;
+                case 1: p101 = value; break;
+                case 2: p100 = value; break;
+                case 3: p000 = value; break;
+                case 4: p011 = value; break;
+                case 5: p111 = value; break;
+                case 6: p110 = value; break;
+                case 7: p010 = value; break;
+                default: throw new System.IndexOutOfRangeException("i = " + i);
+            }
+        }
+    }
 }

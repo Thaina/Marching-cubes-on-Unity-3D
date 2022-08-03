@@ -105,12 +105,13 @@ public class Chunk : MonoBehaviour
             //Gizmos.color = new Color(1f,0.28f,0f);
             Gizmos.color = Color.Lerp(Color.red, Color.magenta, ((transform.position.x + transform.position.z) % 100) / 100);
 
-            Gizmos.DrawWireCube(transform.position,BoxSize * Constants.VOXEL_SIDE);
+            Gizmos.DrawWireCube(transform.position,(float3)BoxSize * Constants.VOXEL_SIDE);
         }
     }
 #endif
 
-    public static float3 BoxSize => new float3(Constants.CHUNK_SIZE, Constants.MAX_HEIGHT, Constants.CHUNK_SIZE);
+    public static int3 BoxSize => new int3(Constants.CHUNK_SIZE, Constants.MAX_HEIGHT, Constants.CHUNK_SIZE);
+    public static int Index(int3 p) => p.x + p.z * Constants.CHUNK_SIZE + p.y * Constants.CHUNK_VOXEL_AREA;
 }
 
 

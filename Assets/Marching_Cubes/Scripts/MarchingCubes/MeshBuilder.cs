@@ -24,6 +24,66 @@ public class MeshBuilder : Singleton<MeshBuilder>
     /// <param name="b"> data of the chunk</param>
     public Mesh BuildChunk(byte[] b)
     {
+        var buildChunkJob = new BuildCubeJob() {
+            isoLevel = this.isoLevel,
+            chunkData = new NativeArray<byte>(b, Allocator.TempJob),
+            results = new NativeArray<BuildCubeJob.CubeData>(Constants.CHUNK_VOXEL_SIZE, Allocator.TempJob)
+        };
+
+        var indices = new NativeList<int>(Allocator.TempJob);
+
+        try
+        {
+            var jobHandle = buildChunkJob.Schedule(Constants.CHUNK_VOXEL_SIZE,default);
+            jobHandle.Complete();
+
+            var filterCubeJob = new FilterCubeJob() { cubeDatas = buildChunkJob.results, };
+            jobHandle = filterCubeJob.ScheduleAppend(indices,Constants.CHUNK_VOXEL_SIZE * 16,64);
+            jobHandle.Complete();
+
+            var marchCubeJob = new MarchCubeJob() {
+                isoLevel = this.isoLevel,
+                interpolate = this.interpolate,
+                cubeDatas = buildChunkJob.results,
+                indices = indices,
+                vertex = new NativeArray<float3>(indices.Length,Allocator.TempJob),
+                uv = new NativeArray<float2>(indices.Length,Allocator.TempJob),
+            };
+
+            try
+            {   jobHandle = marchCubeJob.Schedule(indices.Length,default);
+                jobHandle.Complete();
+
+                //Get all the data from the jobs and use to generate a Mesh
+                var meshGenerated = new Mesh();
+
+                meshGenerated.SetVertices(marchCubeJob.vertex,0,marchCubeJob.vertex.Length,MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+                meshGenerated.SetUVs(0,marchCubeJob.uv,0,marchCubeJob.uv.Length,MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+                meshGenerated.SetIndices(Enumerable.Range(0,marchCubeJob.vertex.Length).ToArray(),MeshTopology.Triangles,0,false);
+
+                meshGenerated.RecalculateBounds();
+                meshGenerated.RecalculateNormals();
+                meshGenerated.RecalculateTangents();
+
+                return meshGenerated;
+            }
+            finally
+            {
+                //Dispose (Clear the jobs NativeLists)
+                marchCubeJob.Dispose();
+            }
+        }
+        finally
+        {
+            indices.Dispose();
+
+            //Dispose (Clear the jobs NativeLists)
+            buildChunkJob.Dispose();
+        }
+    }
+
+    public Mesh BuildChunkOld(byte[] b)
+    {
         var buildChunkJob = new BuildChunkJob() {
             chunkData = new NativeArray<byte>(b, Allocator.TempJob),
             isoLevel = this.isoLevel,

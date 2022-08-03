@@ -3,7 +3,7 @@
 /// <summary>
 /// Singleton. See <a href="https://github.com/UnityCommunity/UnitySingleton">Unity Singleton</a>
 /// </summary>
-public abstract class Singleton<T> : MonoBehaviour where T : Component
+public abstract class Singleton<T> : MonoBehaviour where T : Singleton<T>
 {
     #region Fields
     /// <summary>
@@ -42,7 +42,7 @@ public abstract class Singleton<T> : MonoBehaviour where T : Component
     /// <summary>
     /// Use this for initialization.
     /// </summary>
-    public virtual void Awake()
+    protected virtual void Awake()
     {
         if (instance == null)
         {

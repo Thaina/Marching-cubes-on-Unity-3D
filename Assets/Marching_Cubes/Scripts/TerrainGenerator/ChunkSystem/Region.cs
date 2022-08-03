@@ -1,7 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+
 using UnityEngine;
-using System.IO;
+
 using Unity.Mathematics;
 
 public class Region
@@ -19,14 +20,25 @@ public class Region
     /// </summary>
     public Region(int2 location)
     {
-        worldpath = WorldManager.GetSelectedWorldDir();
+        worldpath = WorldManager.GetSelectedWorldName();
         region = location;
-        if (File.Exists(DirectionChunkFile()))
+
+        try
         {
-            byte[] data = File.ReadAllBytes(DirectionChunkFile());
-            regionData = new List<byte>(Constants.REGION_SAVE_COMPRESSED ? CompressHelper.Decompress(data) : data);
+            var data = WorldManager.LoadFile(DirectionChunkFile());
+            if (!string.IsNullOrEmpty(data))
+            {
+                var bytes = System.Convert.FromBase64String(data);
+                regionData = new List<byte>(Constants.REGION_SAVE_COMPRESSED ? CompressHelper.Decompress(bytes) : bytes);
+                return;
+            }
         }
-        else regionData = new List<byte>(new byte[Constants.REGION_LOOKTABLE_BYTES]);//Look table initialized, all 0
+        catch(System.Exception e)
+        {
+            Debug.LogException(e);
+        }
+
+        regionData = new List<byte>(new byte[Constants.REGION_LOOKTABLE_BYTES]);//Look table initialized, all 0
     }
     
     /// <summary>
@@ -115,15 +127,16 @@ public class Region
             return;
 
         modified = false;
-        byte[] data = regionData.ToArray();
-        File.WriteAllBytes(DirectionChunkFile(),Constants.REGION_SAVE_COMPRESSED ? CompressHelper.Compress(data) : data);
+        var data = regionData.ToArray();
+        var encoded = System.Convert.ToBase64String(Constants.REGION_SAVE_COMPRESSED ? CompressHelper.Compress(data) : data);
+        WorldManager.SaveFile(DirectionChunkFile(),encoded);
     }
 
 
     //Help function, get chunk file direction.
     private string DirectionChunkFile()
     {
-        return worldpath + "/"+ region.x + "."+ region.y + ".reg";
+        return System.IO.Path.Combine(worldpath,region.x + "."+ region.y + ".reg");
     }
 
 

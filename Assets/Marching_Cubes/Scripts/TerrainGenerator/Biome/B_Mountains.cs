@@ -28,7 +28,7 @@ public class B_Mountains : Biome
 		var noise = NoiseManager.GenerateExtendedNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		for (int a = 0; a < Constants.CHUNK_VERTEX_AREA; a++)//start a 1 because the noise start at -1 of the chunk vertex
 		{
-			var p = Constants.DivMod(a,Constants.CHUNK_VERTEX_SIZE);
+			var p = Constants.ModDiv(a,Constants.CHUNK_VERTEX_SIZE);
 			// Get surface height of the x,z position 1276120704
 			float height = surfaceStart + Mathf.Lerp(0,//Biome merge height
 				terrainHeightCurve.Evaluate(noise[Noise.Index(p)]) * (maxSurfaceheight - surfaceStart),//Desired biome height

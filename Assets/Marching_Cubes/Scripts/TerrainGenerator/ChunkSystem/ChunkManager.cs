@@ -75,7 +75,7 @@ public class ChunkManager : Singleton<ChunkManager>
         }
 
         //save old regions
-        foreach (var region in regionDict.Values)
+        foreach(var region in regionDict.Values)
             region.SaveRegionData();
 
         //Assign new region area
@@ -91,7 +91,7 @@ public class ChunkManager : Singleton<ChunkManager>
         CheckNewChunks();
         LoadChunkFromList();
         CheckRegion();
-        if (Input.GetKeyDown(KeyCode.F4))
+        if(Input.GetKeyDown(KeyCode.F4))
         {
             debugMode = !debugMode;
         }
@@ -104,16 +104,16 @@ public class ChunkManager : Singleton<ChunkManager>
     void HiddeRemoveChunk()
     {
         var removeList = new List<int2>(); ;
-        foreach (var chunk in chunkDict)
+        foreach(var chunk in chunkDict)
         {
             float distance = math.length(new float3(player.position - chunk.Value.transform.position).xz);
-            if (distance > removeDistance)
+            if(distance > removeDistance)
             {
                 chunk.Value.saveChunkInRegion();//Save chunk only in case that get some modifications
                 Destroy(chunk.Value.gameObject);
                 removeList.Add(chunk.Key);
             }
-            else if (distance > hideDistance && chunk.Value.gameObject.activeSelf)
+            else if(distance > hideDistance && chunk.Value.gameObject.activeSelf)
             {
                 chunk.Value.gameObject.SetActive(false);
             }
@@ -143,13 +143,13 @@ public class ChunkManager : Singleton<ChunkManager>
         {
             for (int z = actualChunk.y - chunkViewDistance; z < actualChunk.y + chunkViewDistance; z++)
             {
-                if (math.distancesq(actualChunk,new int2(x,z)) > chunkViewDistance * chunkViewDistance)
+                if(math.distancesq(actualChunk,new int2(x,z)) > chunkViewDistance * chunkViewDistance)
                 {
                     continue;
                 }
 
                 var key = new int2(x, z);
-                if (chunkDict.TryGetValue(key,out var chunk))
+                if(chunkDict.TryGetValue(key,out var chunk))
                 {
                     if(!chunk.gameObject.activeSelf)
                         chunk.gameObject.SetActive(true);
@@ -167,7 +167,7 @@ public class ChunkManager : Singleton<ChunkManager>
     /// </summary>
     void LoadChunkFromList()
     {
-        if (!chunkLoadList.TryDequeue(out var key))
+        if(!chunkLoadList.TryDequeue(out var key))
             return;
 
         var regionPos = new int2(math.floor((float2)key / Constants.REGION_SIZE));
@@ -193,7 +193,7 @@ public class ChunkManager : Singleton<ChunkManager>
     void CheckRegion()
     {
         var pos = (float3)player.position;
-        if (math.any(math.abs(lastPlayerPos - pos.xz) > loadRegionDistance))
+        if(math.any(math.abs(lastPlayerPos - pos.xz) > loadRegionDistance))
         {
             var actual = RegionFromPosition(pos);
             lastPlayerPos = actual * loadRegionDistance + loadRegionDistance / 2;
@@ -235,11 +235,11 @@ public class ChunkManager : Singleton<ChunkManager>
                     //Edit vertex of the chunk
                     var vertexPoint = vertexOrigin + new float3(x,y,z);
                     //Avoid edit the first and last height vertex of the chunk, for avoid non-faces in that heights
-                    if (math.abs(vertexPoint.y) >= Constants.MAX_HEIGHT / 2)
+                    if(math.abs(vertexPoint.y) >= Constants.MAX_HEIGHT / 2)
                         continue;
 
                     float distance = math.distance(vertexPoint, modificationPoint);
-                    if (distance > range)//Not in range of modification, we check other vertexs
+                    if(distance > range)//Not in range of modification, we check other vertexs
                     {
                         //Debug.Log("no Rango: "+ distance + " > " + range+ " |  "+ vertexPoint +" / " + modificationPoint);
                         continue;
@@ -252,7 +252,7 @@ public class ChunkManager : Singleton<ChunkManager>
 
                     int chunkModification = (int)(modification * (1 - distance / range));
 
-                    if (chunkDict.TryGetValue(hitChunk,out var chunk00))
+                    if(chunkDict.TryGetValue(hitChunk,out var chunk00))
                     {
                         chunk00.modifyTerrain(vertexChunk, chunkModification, mat);
                     }
@@ -260,17 +260,17 @@ public class ChunkManager : Singleton<ChunkManager>
                     var isZero = vertexChunk.xz == 0;
 
                     //Functions for change last vertex of chunk (vertex that touch others chunk)
-                    if (math.all(isZero) && chunkDict.TryGetValue(hitChunk - new int2(1,1),out var chunk11))//Interact with chunk(-1,-1)
+                    if(math.all(isZero) && chunkDict.TryGetValue(hitChunk - new int2(1,1),out var chunk11))//Interact with chunk(-1,-1)
                     {
                         chunk11.modifyTerrain(new int3(vertexChunk) { xz = Constants.CHUNK_SIZE }, chunkModification, mat);
                     }
 
-                    if (isZero.x && chunkDict.TryGetValue(hitChunk - new int2(1,0),out var chunk10))//Interact with vertex of chunk(-1,0)
+                    if(isZero.x && chunkDict.TryGetValue(hitChunk - new int2(1,0),out var chunk10))//Interact with vertex of chunk(-1,0)
                     {
                         chunk10.modifyTerrain(new int3(vertexChunk) { x = Constants.CHUNK_SIZE }, chunkModification, mat);
                     }
                     
-                    if (isZero.y && chunkDict.TryGetValue(hitChunk - new int2(0,1),out var chunk01))//Interact with vertex of chunk(0,-1)
+                    if(isZero.y && chunkDict.TryGetValue(hitChunk - new int2(0,1),out var chunk01))//Interact with vertex of chunk(0,-1)
                     {
                         chunk01.modifyTerrain(new int3(vertexChunk) { z = Constants.CHUNK_SIZE }, chunkModification, mat);
                     }
@@ -302,7 +302,7 @@ public class ChunkManager : Singleton<ChunkManager>
             //Position of the vertexPoint in the chunk (x,y,z)
             var vertexChunk = new int3(nextVertexPoint - new float3() { xz = hitChunk * Constants.CHUNK_SIZE } + Chunk.VertexSize / 2);
 
-            if (chunkDict[hitChunk].GetMaterial(vertexChunk) is var tmp && tmp != Constants.NUMBER_MATERIALS)//not air material, we return it
+            if(chunkDict[hitChunk].GetMaterial(vertexChunk) is var tmp && tmp != Constants.NUMBER_MATERIALS)//not air material, we return it
             {
                 return tmp;
             }
@@ -314,18 +314,25 @@ public class ChunkManager : Singleton<ChunkManager>
     /// <summary>
     /// Save all chunk and regions data when user close the game.
     /// </summary>
-    void OnApplicationQuit()
+    void OnApplicationQuit() => SaveRegions();
+
+    public void SaveRegions()
     {
-        //save chunks
-        foreach(Chunk chunk in chunkDict.Values)
-            chunk.saveChunkInRegion();
+        try
+        {
+            //save chunks
+            foreach(var chunk in chunkDict.Values)
+                chunk.saveChunkInRegion();
 
-        //save regions
-        foreach (Region region in regionDict.Values)
-            region.SaveRegionData();
+            //save regions
+            foreach(var region in regionDict.Values)
+                region.SaveRegionData();
+        }
+        catch(System.Exception e)
+        {
+            Debug.LogException(e);
+        }
     }
-
-
 
     #region DebugMode
     //The code of the region is used for the Debug system, allow you to check your current chunk and see data from the voxels.
@@ -333,16 +340,16 @@ public class ChunkManager : Singleton<ChunkManager>
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {
-        if (debugMode && Application.isPlaying)
+        if(debugMode && Application.isPlaying)
         {
             //Show chunk
             var actualChunk = ActualChunk(player.position,0);
             var chunkCenter = new float3() { xz = (float2)actualChunk * Constants.CHUNK_SIDE };
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireCube(chunkCenter,Chunk.BoxSize * Constants.VOXEL_SIDE);
+            Gizmos.DrawWireCube(chunkCenter,(float3)Chunk.BoxSize * Constants.VOXEL_SIDE);
 
             //Show voxel
-            if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out var hitInfo, 100.0f))
+            if(Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out var hitInfo, 100.0f))
             {
                 var voxelRealPosition = math.floor(hitInfo.point / Constants.VOXEL_SIDE) * Constants.VOXEL_SIDE + Constants.VOXEL_SIDE / 2;
 
