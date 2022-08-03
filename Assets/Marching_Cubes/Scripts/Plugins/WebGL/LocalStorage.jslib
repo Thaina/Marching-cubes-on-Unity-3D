@@ -1,4 +1,7 @@
 mergeInto(LibraryManager.library, {
+    PointerLocked: function() {
+        return document.pointerLockElement != null;
+    },
 
     LocalStorageSave : function(key, data) {
         localStorage.setItem(UTF8ToString(key), UTF8ToString(data));
