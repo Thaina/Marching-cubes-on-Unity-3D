@@ -56,25 +56,35 @@ public class Chunk : MonoBehaviour
     /// <param name="vertexPoint"></param>
     /// <param name="modification"></param>
     /// <param name="mat"></param>
-    public void modifyTerrain(int3 vertexPoint, int modification, int mat = 0)
+    public void modifyTerrain(int3 vertexPoint, int modification, int mat = -1)
     {
         int byteIndex = Biome.ByteIndex(vertexPoint);
 
-        int value = data[byteIndex];
+        var (value,material) = (data[byteIndex],data[byteIndex + 1]);
         byte newValue = (byte)math.clamp(value + modification, 0, 255);
 
-        if (value == newValue)
-            return;
-
-        if (modification > 0) // addTerrain
+        if (value != newValue)
         {
-            int isoSurface = MeshBuilder.Instance.isoLevel;
-            if (value < isoSurface && newValue >= isoSurface)
-                data[byteIndex + 1] = (byte)mat;
+            data[byteIndex] = newValue;
+            modified = true;
         }
+        
+        if (material != mat && mat >= 0 && mat <= 255) // addTerrain
+        {
+            data[byteIndex + 1] = (byte)mat;
+            modified = true;
+        }
+        
+        //Don't direct change because some vertex are modifier in the same editions, wait to next frame
+    }
 
-        data[byteIndex] = (byte)newValue;
-        modified = true; //Don't direct change because some vertex are modifier in the same editions, wait to next frame
+    /// <summary>
+    /// Get the material(byte) from a specific point in the chunk
+    /// </summary>
+    public (byte value,byte material) GetData(int3 vertexPoint)
+    {
+        var index = Biome.ByteIndex(vertexPoint);
+        return (data[index],data[index + 1]);
     }
 
     /// <summary>

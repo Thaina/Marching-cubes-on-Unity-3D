@@ -37,6 +37,7 @@ public class CameraTerrainModifier : MonoBehaviour
     private static extern bool PointerLocked();
 #endif
 
+    public int Mode { get; set; }
     void Update()
     {
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -77,9 +78,11 @@ public class CameraTerrainModifier : MonoBehaviour
             if(Input.GetMouseButton(1))
                 modification -= 1;
 
-            if(Physics.Raycast(transform.position, transform.forward, out hit, rangeHit))
+            if(modification != 0 && Physics.Raycast(transform.position, transform.forward, out hit, rangeHit))
             {
-                chunkManager.ModifyChunkData(hit.point, sizeHit,modification * modiferStrengh, buildingMaterial);
+                if(Mode == 0)
+                    chunkManager.ModifyChunkData(hit.point, sizeHit,modification * modiferStrengh, buildingMaterial);
+                else chunkManager.AddSnow(hit.point, Constants.MAX_HEIGHT - 16, sizeHit * (modification > 0 ? 3 : 5),modification * modiferStrengh);
             }
 
             //Inputs
@@ -94,7 +97,7 @@ public class CameraTerrainModifier : MonoBehaviour
             }
         }
     }
-
+    
     public void UpdateUI()
     {
         sizeHit = Mathf.Clamp(sizeHit,1,10);
