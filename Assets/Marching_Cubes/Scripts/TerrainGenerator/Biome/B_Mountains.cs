@@ -21,10 +21,10 @@ public class B_Mountains : Biome
 	public float dirtLevel = 0.25f;
 
 
-	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
+	public override BiomeChunkData[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
 		int surfaceStart = NoiseManager.Instance.worldConfig.surfaceLevel;//Avoid too high value that generate bad mesh
-		var chunkData = new byte[Constants.CHUNK_BYTES];
+		var chunkData = new BiomeChunkData[Constants.CHUNK_TOTAL_VERTEX];
 		var noise = NoiseManager.GenerateExtendedNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		for (int a = 0; a < Constants.CHUNK_VERTEX_AREA; a++)//start a 1 because the noise start at -1 of the chunk vertex
 		{
@@ -44,30 +44,29 @@ public class B_Mountains : Biome
 				int index = ByteIndex(a,y);//apply x-1 and z-1 for get the correct index
 				if (y < heightY)
 				{
-					chunkData[index] = 255;
+					chunkData[index].Value = 255;
 					if (y < heightY - 5 || slope > rockLevel)
-						chunkData[index + 1] = 4;//Rock
+						chunkData[index].Material = 4;//Rock
 					else if (slope < dirtLevel && y > snowHeight)//Avoid dirt in snow areas
-						chunkData[index + 1] = 3;
+						chunkData[index].Material = 3;
 					else
-						chunkData[index + 1] = 1;//dirt
+						chunkData[index].Material = 1;//dirt
 				}
 				else if (y == heightY)
 				{
-					chunkData[index] = (byte)lastVertexWeigh;//
+					chunkData[index].Value = (byte)lastVertexWeigh;//
 					if (slope > rockLevel)
-						chunkData[index + 1] = 4;//Mountain Rock
+						chunkData[index].Material = 4;//Mountain Rock
 					else if (slope > dirtLevel)
-						chunkData[index + 1] = 1;//dirt
+						chunkData[index].Material = 1;//dirt
 					else if (y > snowHeight)
-						chunkData[index + 1] = 3;//snow
-					else
-						chunkData[index + 1] = 0;//grass
+						chunkData[index].Material = 3;//snow
+					else chunkData[index].Material = 0;//grass
 				}
 				else
 				{
-					chunkData[index] = 0;
-					chunkData[index + 1] = Constants.NUMBER_MATERIALS;
+					chunkData[index].Value = 0;
+					chunkData[index].Material = Constants.NUMBER_MATERIALS;
 				}
 			}
 		}

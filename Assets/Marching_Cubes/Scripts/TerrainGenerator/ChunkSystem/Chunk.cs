@@ -3,11 +3,17 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
+public interface IChunkData
+{
+    byte Value { get; }
+    byte Material { get; }
+}
+
 public class Chunk : MonoBehaviour
 {
     [Tooltip("Active gizmos that represent the area of the chunk")]
     public bool debug = false;
-    private byte[] data;
+    private BiomeChunkData[] data;
     private int2 pos;
     private Region fatherRegion;
     private bool modified = false;
@@ -17,7 +23,7 @@ public class Chunk : MonoBehaviour
     /// Create a Chunk using a byte[] that contain all the data of the chunk.
     /// </summary>
     /// <param name="b"> data of the chunk</param>
-    public Chunk ChunkInit(byte[] b, int2 p, Region region, bool save)
+    public Chunk ChunkInit(BiomeChunkData[] b, int2 p, Region region, bool save)
     {
         data = b;
         pos = p;
@@ -60,18 +66,18 @@ public class Chunk : MonoBehaviour
     {
         int byteIndex = Biome.ByteIndex(vertexPoint);
 
-        var (value,material) = (data[byteIndex],data[byteIndex + 1]);
+        var (value,material) = data[byteIndex];
         byte newValue = (byte)math.clamp(value + modification, 0, 255);
 
         if (value != newValue)
         {
-            data[byteIndex] = newValue;
+            data[byteIndex].Value = newValue;
             modified = true;
         }
         
         if (material != mat && mat >= 0 && mat <= 255) // addTerrain
         {
-            data[byteIndex + 1] = (byte)mat;
+            data[byteIndex].Material = (byte)mat;
             modified = true;
         }
         
@@ -81,10 +87,9 @@ public class Chunk : MonoBehaviour
     /// <summary>
     /// Get the material(byte) from a specific point in the chunk
     /// </summary>
-    public (byte value,byte material) GetData(int3 vertexPoint)
+    public BiomeChunkData GetData(int3 vertexPoint)
     {
-        var index = Biome.ByteIndex(vertexPoint);
-        return (data[index],data[index + 1]);
+        return data[Biome.ByteIndex(vertexPoint)];
     }
 
     /// <summary>
@@ -92,7 +97,7 @@ public class Chunk : MonoBehaviour
     /// </summary>
     public byte GetMaterial(int3 vertexPoint)
     {
-        return data[Biome.ByteIndex(vertexPoint) + 1];
+        return GetData(vertexPoint).Material;
     }
 
     public static float3 VertexSize => new float3(Constants.CHUNK_VERTEX_SIZE,Constants.CHUNK_VERTEX_HEIGHT,Constants.CHUNK_VERTEX_SIZE);

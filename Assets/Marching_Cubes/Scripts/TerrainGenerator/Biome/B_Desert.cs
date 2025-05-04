@@ -12,9 +12,9 @@ public class B_Desert : Biome
 	[Header("Texture generation")]
 	[Tooltip("Number vertex (y), where the sand end and the rock start")][Range(0, Constants.MAX_HEIGHT - 1)]
 	public int sandDeep = Constants.MAX_HEIGHT / 5;
-	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
+	public override BiomeChunkData[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
-		var chunkData = new byte[Constants.CHUNK_BYTES];
+		var chunkData = new BiomeChunkData[Constants.CHUNK_TOTAL_VERTEX];
 		float[] noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		for (int n = 0; n < Constants.CHUNK_VERTEX_AREA; n++)
 		{
@@ -31,20 +31,20 @@ public class B_Desert : Biome
 				int index = ByteIndex(n,y);
 				if (y < heightY - sandDeep)
 				{
-					chunkData[index] = 255;
-					chunkData[index + 1] = 4;//Rock
+					chunkData[index].Value = 255;
+					chunkData[index].Material = 4;//Rock
 				}
 				else if (y > heightY)
 				{
-					chunkData[index] = 0;
-					chunkData[index + 1] = Constants.NUMBER_MATERIALS;
+					chunkData[index].Value = 0;
+					chunkData[index].Material = Constants.NUMBER_MATERIALS;
 				}
 				else
 				{
 					if (y == heightY)
-						chunkData[index] = (byte)lastVertexWeigh;
-					else chunkData[index] = 255;
-					chunkData[index + 1] = 6;//sand
+						chunkData[index].Value = (byte)lastVertexWeigh;
+					else chunkData[index].Value = 255;
+					chunkData[index].Material = 6;//sand
 				}
 			}
 		}

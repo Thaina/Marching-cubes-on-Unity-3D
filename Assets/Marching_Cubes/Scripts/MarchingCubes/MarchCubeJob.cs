@@ -6,11 +6,11 @@ using Unity.Burst;
 using Unity.Mathematics;
 
 [BurstCompile]//For test without burst, just remove this flag.
-public struct FilterCubeJob : IJobParallelForFilter
+public struct FilterCubeJob : IJobFilter
 {
-    [ReadOnly]public NativeArray<BuildCubeJob.CubeData> cubeDatas;
+    [ReadOnly]public NativeArray<BuildCubeData> cubeDatas;
 
-	bool IJobParallelForFilter.Execute(int index)
+	bool IJobFilter.Execute(int index)
 	{
         var cubeData = cubeDatas[index / 16];
 
@@ -23,7 +23,7 @@ public struct FilterCubeJob : IJobParallelForFilter
 [BurstCompile]//For test without burst, just remove this flag.
 public struct MarchCubeJob : IJobParallelFor,INativeDisposable
 {
-    [ReadOnly]public NativeArray<BuildCubeJob.CubeData> cubeDatas;
+    [ReadOnly]public NativeArray<BuildCubeData> cubeDatas;
     [ReadOnly]public NativeArray<int> indices;
     [WriteOnly]public NativeArray<float3> vertex;
     [WriteOnly]public NativeArray<float2> uv;

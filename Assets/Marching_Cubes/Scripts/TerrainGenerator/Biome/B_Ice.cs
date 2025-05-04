@@ -25,11 +25,11 @@ public class B_Ice : Biome
 	[Range(1, 20)]
 	public float IceLacunarity = 2f;
 
-	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
+	public override BiomeChunkData[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
-		var chunkData = new byte[Constants.CHUNK_BYTES];
-		float[] noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
-		float[] iceNoise = NoiseManager.GenerateNoiseMap(iceNoiseScale,2,IcePersistance,IceLacunarity, vecPos);
+		var chunkData = new BiomeChunkData[Constants.CHUNK_TOTAL_VERTEX];
+		var noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
+		var iceNoise = NoiseManager.GenerateNoiseMap(iceNoiseScale,2,IcePersistance,IceLacunarity, vecPos);
 		for (int n = 0; n < Constants.CHUNK_VERTEX_AREA; n++)
 		{
 			// Get surface height of the x,z position 
@@ -50,23 +50,23 @@ public class B_Ice : Biome
 				int index = ByteIndex(n,y);
 				if (y < heightY - snowDeep)
 				{
-					chunkData[index] = 255;
-					chunkData[index + 1] = 4;//Rock
+					chunkData[index].Value = 255;
+					chunkData[index].Material = 4;//Rock
 				}
 				else if (y > heightY + iceExtraHeigh)
 				{
-					chunkData[index] = 0;
-					chunkData[index + 1] = Constants.NUMBER_MATERIALS;
+					chunkData[index].Value = 0;
+					chunkData[index].Material = Constants.NUMBER_MATERIALS;
 				}
 				else
 				{
 					if(y < heightY + iceExtraHeigh)
-						chunkData[index] = 255;
-					else chunkData[index] = (byte)lastVertexWeigh;
+						chunkData[index].Value = 255;
+					else chunkData[index].Value = (byte)lastVertexWeigh;
 
 					if (y <= heightY)
-						chunkData[index + 1] = 3;//snow
-					else chunkData[index + 1] = 5;//ice
+						chunkData[index].Material = 3;//snow
+					else chunkData[index].Material = 5;//ice
 				}
 			}
 		}

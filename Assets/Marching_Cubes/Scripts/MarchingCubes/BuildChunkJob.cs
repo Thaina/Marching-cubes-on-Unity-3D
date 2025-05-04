@@ -6,9 +6,9 @@ using Unity.Burst;
 using Unity.Mathematics;
 
 [BurstCompile]//For test without burst, just remove this flag.
-public struct BuildChunkJob : IJobFor,INativeDisposable
+public struct BuildChunkJob<C> : IJobFor,INativeDisposable where C : struct,IChunkData
 {
-    [ReadOnly]public NativeArray<byte> chunkData;
+    [ReadOnly]public NativeArray<C> chunkData;
     [WriteOnly]public NativeList<float3> vertex;
     [WriteOnly]public NativeList<float2> uv;
 
@@ -42,9 +42,9 @@ public struct BuildChunkJob : IJobFor,INativeDisposable
             var point = pos + Constants.CubePointOffSet(i);
             int bindex = Biome.ByteIndex(point);
 
-            float w = chunkData[bindex];
+            float w = chunkData[bindex].Value;
             if(w >= isoLevel)
-                mat = math.min(mat,chunkData[bindex + 1]);
+                mat = math.min(mat,chunkData[bindex].Material);
             else cubeindex |= (1 << i);
 
             cube[i] = new float4((point - (float3)Chunk.BoxSize / 2) * Constants.VOXEL_SIDE,w);

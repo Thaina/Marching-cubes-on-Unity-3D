@@ -90,15 +90,15 @@ public class NoiseManager : Singleton<NoiseManager>
 		ChunkManager.Instance.Initialize();
 	}
 
-	public byte[] GenerateChunkData(int2 vecPos)
+	public BiomeChunkData[] GenerateChunkData(int2 vecPos)
 	{
-		var chunkData = new byte[Constants.CHUNK_BYTES];
+		var chunkData = new BiomeChunkData[Constants.CHUNK_TOTAL_VERTEX];
 
 		var biomeNoise = GenerateNoiseMap(worldConfig.biomeScale * biomes.Length, worldConfig.octaves, worldConfig.persistance, worldConfig.lacunarity, vecPos);//Biomes noise (0-1) of each (x,z) position
 		//biomes index in the array of BiomeProperties
 		var biomeTable = GetChunkBiomes(biomeNoise, out var mergeBiomeTable);//Value(0-1) of merged with other biomes in a (x,z) position
 
-		var biomesData = new byte[biomes.Length][];//Data generate from biomes.biome.GenerateChunkData()
+		var biomesData = new BiomeChunkData[biomes.Length][];//Data generate from biomes.biome.GenerateChunkData()
 
 		for (int index = 0;  index < Constants.CHUNK_VERTEX_AREA; index++)
 		{
@@ -112,7 +112,6 @@ public class NoiseManager : Singleton<NoiseManager>
 			{
 				int chunkByteIndex = Biome.ByteIndex(index,y);
 				chunkData[chunkByteIndex] = biomesData[biomeIndex][chunkByteIndex];
-				chunkData[chunkByteIndex + 1] = biomesData[biomeIndex][chunkByteIndex + 1];
 			}
 		}
 

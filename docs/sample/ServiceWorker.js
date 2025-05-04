@@ -1,9 +1,9 @@
 const cacheName = "JavierGarzo-MarchingCubes-0.1";
 const contentToCache = [
-    "Build/samples.loader.js",
-    "Build/samples.framework.js",
-    "Build/samples.data",
-    "Build/samples.wasm",
+    "Build/sample.loader.js",
+    "Build/sample.framework.js",
+    "Build/sample.data",
+    "Build/sample.wasm",
     "TemplateData/style.css"
 
 ];

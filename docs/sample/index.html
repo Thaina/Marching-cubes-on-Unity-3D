@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | MarchingCubes</title>
+    <title>Unity Web Player | MarchingCubes</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
     <link rel="manifest" href="manifest.webmanifest">
   </head>
   <body>
     <div id="unity-container">
-      <canvas id="unity-canvas" width=960 height=600></canvas>
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
         <div id="unity-progress-bar-empty">
@@ -57,11 +57,12 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/samples.loader.js";
+      var loaderUrl = buildUrl + "/sample.loader.js";
       var config = {
-        dataUrl: buildUrl + "/samples.data",
-        frameworkUrl: buildUrl + "/samples.framework.js",
-        codeUrl: buildUrl + "/samples.wasm",
+        arguments: [],
+        dataUrl: buildUrl + "/sample.data",
+        frameworkUrl: buildUrl + "/sample.framework.js",
+        codeUrl: buildUrl + "/sample.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "JavierGarzo",
         productName: "MarchingCubes",

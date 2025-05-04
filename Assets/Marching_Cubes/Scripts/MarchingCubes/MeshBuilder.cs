@@ -22,21 +22,21 @@ public class MeshBuilder : Singleton<MeshBuilder>
 	/// Method that calculate cubes, vertex and mesh in that order of a chunk.
 	/// </summary>
 	/// <param name="b"> data of the chunk</param>
-	public Mesh BuildChunk(byte[] b)
+	public Mesh BuildChunk(BiomeChunkData[] b)
 	{
 		JobHandle jobHandle;
-		var chunkData = new NativeArray<byte>(b, Allocator.TempJob);
+		var chunkData = new NativeArray<BiomeChunkData>(b, Allocator.TempJob);
 
 		var indices = new NativeList<int>(Allocator.TempJob);
-		var filterChunkJob = new FilterChunkJob() { isoLevel = this.isoLevel,chunkData = chunkData };
+		var filterChunkJob = new FilterChunkJob<BiomeChunkData>() { isoLevel = this.isoLevel,chunkData = chunkData };
 		jobHandle = filterChunkJob.ScheduleAppend(indices,Constants.CHUNK_VOXEL_SIZE,64);
 		jobHandle.Complete();
 
-		var buildChunkJob = new BuildCubeJob() {
+		var buildChunkJob = new BuildCubeJob<BiomeChunkData>() {
 			isoLevel = this.isoLevel,
 			chunkData = chunkData,
 			chunkIndexes = indices,
-			results = new NativeArray<BuildCubeJob.CubeData>(indices.Length, Allocator.TempJob)
+			results = new NativeArray<BuildCubeData>(indices.Length, Allocator.TempJob)
 		};
 
 		try
@@ -92,10 +92,10 @@ public class MeshBuilder : Singleton<MeshBuilder>
 		}
 	}
 
-	public Mesh BuildChunkOld(byte[] b)
+	public Mesh BuildChunkOld(BiomeChunkData[] b)
 	{
-		var buildChunkJob = new BuildChunkJob() {
-			chunkData = new NativeArray<byte>(b, Allocator.TempJob),
+		var buildChunkJob = new BuildChunkJob<BiomeChunkData>() {
+			chunkData = new NativeArray<BiomeChunkData>(b, Allocator.TempJob),
 			isoLevel = this.isoLevel,
 			interpolate = this.interpolate,
 			vertex = new NativeList<float3>(500, Allocator.TempJob),

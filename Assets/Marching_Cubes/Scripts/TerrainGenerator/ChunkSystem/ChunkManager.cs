@@ -183,7 +183,8 @@ public class ChunkManager : Singleton<ChunkManager>
 		//We get X and Y in the world position, we need calculate the x and y in the region.
 		int chunkIndexInRegion = region.GetChunkIndex(keyInsideChunk);
 		bool isFromRegion = chunkIndexInRegion != 0;
-		var chunkData = isFromRegion ? region.GetChunkData(chunkIndexInRegion) : noiseManager.GenerateChunkData(key);//Generate chunk with the noise generator
+//		var chunkData = isFromRegion ? region.GetChunkData(chunkIndexInRegion) : noiseManager.GenerateChunkData(key);//Generate chunk with the noise generator
+		var chunkData = noiseManager.GenerateChunkData(key);
 		chunkDict.Add(key, chunkObj.AddComponent<Chunk>().ChunkInit(chunkData, keyInsideChunk, region, !isFromRegion && Constants.SAVE_GENERATED_CHUNKS));
 	}
 
@@ -272,7 +273,7 @@ public class ChunkManager : Singleton<ChunkManager>
 						chunk.modifyTerrain(vertexChunk,chunkModification,3);
 					else if(material == 3)
 					{
-						var newMat = chunk.GetData(vertexChunk - new int3(0,1,0)).material == 3 ? 3 : 0;
+						var newMat = chunk.GetData(vertexChunk - new int3(0,1,0)).Material == 3 ? 3 : 0;
 						chunk.modifyTerrain(vertexChunk,chunkModification,newMat);
 					}
 				}

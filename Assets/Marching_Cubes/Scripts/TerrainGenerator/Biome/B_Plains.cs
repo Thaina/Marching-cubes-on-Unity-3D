@@ -8,9 +8,9 @@ public class B_Plains : Biome
 	[Tooltip("The max deep and height of the plains, low values")][Range(0, Constants.MAX_HEIGHT - 1)]
 	public int maxHeightDifference = Constants.MAX_HEIGHT/5;
 
-	public override byte[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
+	public override BiomeChunkData[] GenerateChunkData(int2 vecPos, float[] biomeMerge)
 	{
-		var chunkData = new byte[Constants.CHUNK_BYTES];
+		var chunkData = new BiomeChunkData[Constants.CHUNK_TOTAL_VERTEX];
 		var noise = NoiseManager.GenerateNoiseMap(scale, octaves, persistance, lacunarity, vecPos);
 		for (int n = 0; n < Constants.CHUNK_VERTEX_AREA; n++)
 		{
@@ -27,20 +27,20 @@ public class B_Plains : Biome
 				int index = ByteIndex(n,y);
 				if (y < heightY)
 				{
-					chunkData[index] = 255;
+					chunkData[index].Value = 255;
 					if (y < heightY - 5)
-						chunkData[index + 1] = 4;//Rock
-					else chunkData[index + 1] = 1;//dirt
+						chunkData[index].Material = 4;//Rock
+					else chunkData[index].Material = 1;//dirt
 				}
 				else if (y == heightY)
 				{
-					chunkData[index] = (byte)lastVertexWeigh;
-					chunkData[index + 1] = 0;//grass
+					chunkData[index].Value = (byte)lastVertexWeigh;
+					chunkData[index].Material = 0;//grass
 				}
 				else
 				{
-					chunkData[index] = 0;
-					chunkData[index + 1] = Constants.NUMBER_MATERIALS;
+					chunkData[index].Value = 0;
+					chunkData[index].Material = Constants.NUMBER_MATERIALS;
 				}
 			}
 		}
