@@ -55,11 +55,9 @@ public struct MarchCubeJob : IJobParallelFor,INativeDisposable
         var material = cubeData.material;
         var cube = cubeData.cube;
 
-        int v1 = jobCornerIndexAFromEdge[jobTriTable[i]];
-        int v2 = jobCornerIndexBFromEdge[jobTriTable[i]];
+        var (v1,v2) = cornerIndexFromEdge[jobTriTable[i]];
 
-        float weight = 0.5f;//Unused variable, must be used for interpolation terrain
-        vertex[n] = interpolate ? interporlateVertex(cube[v1], cube[v2], out weight) : (0.5f * (cube[v1].xyz + cube[v2].xyz));
+        vertex[n] = interpolate ? interporlateVertex(cube[v1], cube[v2], out float weight) : (0.5f * (cube[v1].xyz + cube[v2].xyz));
 
         const float uvOffset = 0.01f; //Small offset for avoid pick pixels of other textures
         const float outerOffset = Constants.MATERIAL_SIZE - uvOffset;
@@ -340,37 +338,22 @@ public struct MarchCubeJob : IJobParallelFor,INativeDisposable
         1, 3, 8, 9, 1, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         0, 9, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-
-    public static readonly int[] jobCornerIndexAFromEdge = new int[]{
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        0,
-        1,
-        2,
-        3
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
     };
 
-    public static readonly int[] jobCornerIndexBFromEdge = new int[]{
-        1,
-        2,
-        3,
-        0,
-        5,
-        6,
-        7,
-        4,
-        4,
-        5,
-        6,
-        7
+    public static readonly (int a,int b)[] cornerIndexFromEdge = {
+        (0,1),
+        (1,2),
+        (2,3),
+        (3,0),
+        (4,5),
+        (5,6),
+        (6,7),
+        (7,4),
+        (0,4),
+        (1,5),
+        (2,6),
+        (3,7)
     };
     #endregion
-
 }
